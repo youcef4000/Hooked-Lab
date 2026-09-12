@@ -1,0 +1,626 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Theme "or sur noir" — registre premium, volontairement a
+   l'oppose du violet/bleu/rose devenu la signature des sites IA.
+
+   Noir profond legerement chaud + laiton, or et champagne.
+   Les composants ne referencent que ces tokens : changer le
+   theme de toute l'application se fait dans ce seul bloc.
+   ============================================================ */
+
+@theme {
+  /* Surfaces, du plus profond au plus eleve. Noirs tres legerement
+     chauds : un noir pur sous de l'or parait sale et plat. */
+  --color-ink-950: #07060a; /* Onyx — base de page            */
+  --color-ink-900: #0d0c10; /* Encre — canevas, cartes         */
+  --color-ink-850: #141218; /* Ardoise — cartes elevees        */
+  --color-ink-800: #1d1a20; /* Bordures internes               */
+  --color-ink-700: #2a2530; /* Bordures de composants          */
+  --color-ink-600: #3a3340; /* Separateurs                     */
+
+  /* Texte : blanc creme, jamais blanc pur, pour s'accorder a l'or */
+  --color-mist-400: #8b8494; /* Texte secondaire   */
+  --color-mist-300: #b6afbd; /* Descriptions       */
+  --color-mist-200: #ddd7dd;
+  --color-mist-100: #f6f2ea; /* Texte principal    */
+
+  /* Or : l'accent unique du systeme */
+  --color-brand-500: #c9a227; /* Or vieilli — CTA, actif      */
+  --color-brand-400: #e0be55; /* Or clair — survol, liens     */
+  --color-brand-300: #f2dfa0; /* Champagne — texte sur fonce  */
+
+  /* Metaux d'appoint, pour differencier sans quitter le registre */
+  --color-gold: #d4af37;
+  --color-champagne: #f0d98c;
+  --color-copper: #b87333;
+  --color-bronze: #8c6b3f;
+  --color-jade: #3f7d6b; /* le seul froid : sert aux montants positifs */
+
+  /* Semantique : distincts de l'or pour rester lisibles */
+  --color-amber-glow: #e08c3a;
+  --color-rose-warn: #c9553d;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-figtree), var(--font-inter), ui-sans-serif, sans-serif;
+
+  /* --------------------------------------------------------------
+     Rayons — une seule valeur declinee, jamais de rayon arbitraire.
+     Registre Framer : genereux, la carte est un objet pose, pas un
+     cadre trace.
+     -------------------------------------------------------------- */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  /* --------------------------------------------------------------
+     Ombres — deux niveaux, teintees d'or et non de noir pur. Une ombre
+     noire sur un fond noir ne se voit pas : c'est la lueur coloree qui
+     fait exister l'objet, pas l'assombrissement.
+     -------------------------------------------------------------- */
+  --ombre-pose:
+    0 1px 0 rgb(242 223 160 / 0.04) inset,
+    0 12px 32px -16px rgb(0 0 0 / 0.9);
+  --ombre-levee:
+    0 1px 0 rgb(242 223 160 / 0.07) inset,
+    0 24px 56px -24px rgb(0 0 0 / 0.95),
+    0 0 40px -18px rgb(201 162 39 / 0.45);
+
+  /* Duree et courbe uniques : entree franche, sortie douce. */
+  --t-court: 180ms;
+  --t-moyen: 280ms;
+  --courbe: cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+
+html,
+body {
+  background: var(--color-ink-950);
+  color: var(--color-mist-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* --------------------------------------------------------------
+   Or : degrades, textes et bordures metalliques
+   -------------------------------------------------------------- */
+
+/* Un vrai metal n'est pas une couleur plate : c'est une succession
+   de bandes claires et sombres. D'ou ces degrades a 5 arrets. */
+.text-gold {
+  background: linear-gradient(100deg, #8c6b3f 0%, #f2dfa0 28%, #ffffff 42%, #d4af37 58%, #8c6b3f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cta-aurora {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(100deg, #a8801d 0%, #e0be55 30%, #f2dfa0 50%, #c9a227 72%, #a8801d 100%);
+  color: #120e04;
+  box-shadow:
+    0 1px 0 rgba(255, 245, 200, 0.55) inset,
+    0 10px 30px -10px rgba(201, 162, 39, 0.55);
+  transition:
+    filter 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.cta-aurora:hover {
+  filter: brightness(1.09);
+  box-shadow:
+    0 1px 0 rgba(255, 245, 200, 0.7) inset,
+    0 14px 40px -10px rgba(201, 162, 39, 0.75);
+}
+.cta-aurora:active {
+  transform: scale(0.985);
+}
+
+/* Le reflet qui balaie le bouton, comme sur un metal poli */
+.cta-aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.55) 50%, transparent 62%);
+  transform: translateX(-130%);
+  animation: sheen 4.5s ease-in-out infinite;
+}
+
+@keyframes sheen {
+  0%,
+  62% {
+    transform: translateX(-130%);
+  }
+  86%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+/* Bordure doree en degrade (technique du double fond) */
+.border-gold {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-ink-900), var(--color-ink-900)) padding-box,
+    linear-gradient(135deg, #8c6b3f, #f2dfa0 45%, #8c6b3f) border-box;
+}
+
+/* Filet horizontal or, pour separer les sections */
+.rule-gold {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 39, 0.55), transparent);
+}
+
+/* --------------------------------------------------------------
+   Ambiance : halos, grain, vignette
+   -------------------------------------------------------------- */
+
+.aurora-glow {
+  position: relative;
+}
+.aurora-glow::before,
+.aurora-glow::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(100px);
+  pointer-events: none;
+}
+.aurora-glow::before {
+  width: 560px;
+  height: 560px;
+  left: -160px;
+  top: -200px;
+  background: radial-gradient(circle, rgba(201, 162, 39, 0.22), transparent 66%);
+}
+.aurora-glow::after {
+  width: 480px;
+  height: 480px;
+  right: -140px;
+  bottom: -180px;
+  background: radial-gradient(circle, rgba(184, 115, 51, 0.16), transparent 66%);
+}
+
+/* Grain fin : casse les aplats et donne une texture de papier photo */
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --------------------------------------------------------------
+   Animations
+   -------------------------------------------------------------- */
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-fade-up {
+  animation: fade-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-tab-in {
+  animation: tab-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-16px) rotate(1deg);
+  }
+}
+
+.anim-float {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(45px, -34px) scale(1.14);
+  }
+}
+
+.aurora-glow::before {
+  animation: aurora-drift 13s ease-in-out infinite;
+}
+.aurora-glow::after {
+  animation: aurora-drift 16s ease-in-out infinite reverse;
+}
+
+@keyframes marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.anim-marquee {
+  animation: marquee-left 46s linear infinite;
+}
+.anim-marquee-reverse {
+  animation: marquee-left 52s linear infinite reverse;
+}
+/* Le defilement s'arrete au survol : on peut lire la carte */
+.marquee-hold:hover .anim-marquee,
+.marquee-hold:hover .anim-marquee-reverse {
+  animation-play-state: paused;
+}
+
+/* Etincelles qui montent autour du produit */
+@keyframes spark-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.4);
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-90px) scale(1.1);
+  }
+}
+
+.anim-spark {
+  animation: spark-rise 5s ease-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Anneau qui pulse sous le produit */
+@keyframes ring-pulse {
+  0% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+}
+
+.anim-ring {
+  animation: ring-pulse 3.6s ease-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Le faisceau d'analyse qui balaie la creative */
+@keyframes scanline {
+  0%,
+  100% {
+    top: -12%;
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 1;
+  }
+  99% {
+    top: 106%;
+  }
+}
+
+.anim-scanline {
+  animation: scanline 3.4s ease-in-out infinite;
+}
+
+/* Rotation lente du halo conique derriere le produit */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.anim-spin-slow {
+  animation: spin-slow 22s linear infinite;
+}
+
+/* --------- Creative simulee (mock de pub, en CSS pur) --------- */
+
+@keyframes mock-scene {
+  0%,
+  30% {
+    background-position: 0% 50%;
+  }
+  36%,
+  62% {
+    background-position: 52% 50%;
+  }
+  70%,
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.mock-video {
+  background: linear-gradient(125deg, #17130a 0%, #3a2c12 20%, #6b5220 42%, #1d1710 60%, #4a3a18 82%, #17130a 100%);
+  background-size: 320% 320%;
+  animation: mock-scene 9s ease-in-out infinite;
+}
+
+@keyframes mock-caption {
+  0%,
+  8% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.94);
+  }
+  14%,
+  30% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  36%,
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+.mock-caption {
+  animation: mock-caption 9s ease-in-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes mock-progress {
+  from {
+    width: 4%;
+  }
+  to {
+    width: 96%;
+  }
+}
+
+.mock-progress {
+  animation: mock-progress 9s linear infinite;
+}
+
+@keyframes sticker-pop {
+  0%,
+  55% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-14deg);
+  }
+  62%,
+  88% {
+    opacity: 1;
+    transform: scale(1) rotate(-7deg);
+  }
+  95%,
+  100% {
+    opacity: 0;
+    transform: scale(0.9) rotate(-7deg);
+  }
+}
+
+.mock-sticker {
+  animation: sticker-pop 9s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+/* Barre de defilement discrete */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-ink-600);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* Rangee qui defile horizontalement sans montrer sa barre : onglets, filtres.
+   Sur un telephone, la barre mange une ligne de hauteur et signale un debordement
+   la ou l'utilisateur doit simplement faire glisser. */
+.barre-masquee {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.barre-masquee::-webkit-scrollbar {
+  display: none;
+}
+
+/* Les deux barres centrales du logo respirent, comme un niveau audio. Le
+   transform-box les fait grandir depuis leur propre centre et non depuis
+   l'origine du SVG, sans quoi elles glisseraient hors du trace. */
+.marque-barre {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: marque-respire 2.6s ease-in-out infinite;
+}
+
+@keyframes marque-respire {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(2.1);
+  }
+}
+
+[dir="rtl"] {
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up,
+  .anim-tab-in {
+    animation-duration: 0.01s;
+  }
+  .anim-float,
+  .anim-marquee,
+  .anim-marquee-reverse,
+  .anim-spark,
+  .anim-ring,
+  .anim-scanline,
+  .anim-spin-slow,
+  .marque-barre,
+  .mock-video,
+  .mock-caption,
+  .mock-progress,
+  .mock-sticker,
+  .cta-aurora::after,
+  .aurora-glow::before,
+  .aurora-glow::after {
+    animation: none !important;
+  }
+}
+
+/* ==============================================================
+   Mouvement de l'outil — budget volontairement reduit a deux types.
+
+   1. L'entree au scroll : opacity + translateY, rien d'autre.
+   2. L'etat d'interaction : elevation et lueur au survol.
+
+   Aucune autre animation sur ces pages. Un troisieme type de
+   mouvement rend une interface bavarde, et l'oeil cesse de savoir
+   ou regarder.
+   ============================================================== */
+
+/* 1 — Entree au scroll. La classe est posee au chargement, GSAP la
+   retire ; sans JavaScript le contenu reste donc visible. */
+.rev {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+}
+
+.rev-visible {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--t-moyen) var(--courbe),
+    transform var(--t-moyen) var(--courbe);
+}
+
+/* 2 — Etat d'interaction : la carte se souleve et s'allume. */
+.carte-vivante {
+  border-radius: var(--r-lg);
+  box-shadow: var(--ombre-pose);
+  transition:
+    transform var(--t-court) var(--courbe),
+    box-shadow var(--t-court) var(--courbe),
+    border-color var(--t-court) var(--courbe);
+}
+
+.carte-vivante:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow: var(--ombre-levee);
+  border-color: rgb(201 162 39 / 0.35);
+}
+
+/* La lueur qui suit le curseur : deux variables posees en JS, aucune
+   propriete de mise en page touchee. */
+.suit-curseur {
+  position: relative;
+  isolation: isolate;
+}
+
+.suit-curseur::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-court) var(--courbe);
+  background: radial-gradient(
+    320px circle at var(--sx, 50%) var(--sy, 50%),
+    rgb(201 162 39 / 0.13),
+    transparent 62%
+  );
+}
+
+.suit-curseur:hover::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rev {
+    opacity: 1;
+    transform: none;
+  }
+  .carte-vivante:hover {
+    transform: none;
+  }
+  .suit-curseur::before {
+    display: none;
+  }
+}
+
+/* Or pour les grands titres.
+
+   .text-gold porte cinq arrets et se termine en bronze : superbe sur trois
+   mots, illisible sur une phrase entiere dont la fin tombe dans la zone
+   sombre. Cette variante reste lumineuse d'un bout a l'autre — elle sert
+   des que le texte depasse quelques mots. */
+.text-gold-titre {
+  background: linear-gradient(96deg, #e0be55 0%, #f2dfa0 32%, #fff6dd 52%, #f0d98c 74%, #d4af37 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

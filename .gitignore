@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+
+# Binaires telecharges par `npm run setup`
+bin/
+
+# Donnees locales : videos, audio, frames, rapports
+data/
+# Fichiers deposes en transit (supprimes apres traitement, jamais versionnes)
+data/uploads/
+
+.DS_Store
+Thumbs.db
