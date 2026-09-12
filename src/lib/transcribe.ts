@@ -232,7 +232,10 @@ export async function transcribe(input: {
 
   if (mode === "none") return { transcript: EMPTY_TRANSCRIPT, warnings };
 
-  if (mode === "auto") {
+  // Les sous-titres de la plateforme d'abord : ils sont gratuits, instantanes,
+  // et souvent plus justes qu'une transcription. En mode groq ou openai, cela
+  // evite de payer un appel quand le texte est deja la.
+  if (mode === "auto" || mode === "groq" || mode === "openai") {
     const subs = fromSubtitles(input.subtitlePaths);
     if (subs) return { transcript: subs, warnings };
   }

@@ -5,7 +5,15 @@ import path from "node:path";
 export const ROOT = process.cwd();
 
 export const BIN_DIR = path.join(ROOT, "bin");
-export const DATA_DIR = path.join(ROOT, "data");
+/**
+ * Donnees persistantes : comptes, codes, commandes, analyses, modele Whisper.
+ * Chez un hebergeur, le disque de l'application est efface a chaque
+ * redeploiement : DATA_DIR doit alors pointer vers un volume persistant.
+ * Sans variable, on garde ./data, comme en local.
+ */
+export const DATA_DIR = process.env.DATA_DIR?.trim()
+  ? path.resolve(process.env.DATA_DIR.trim())
+  : path.join(ROOT, "data");
 export const ANALYSES_DIR = path.join(DATA_DIR, "analyses");
 
 /** Dossier de travail d'une analyse : video, audio, frames, rapport. */

@@ -18,12 +18,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BIN_DIR = path.join(ROOT, "bin");
 
 const RELEASES = "https://github.com/yt-dlp/yt-dlp/releases/latest/download";
+// Sous Linux, l'archive nommee "yt-dlp" est un script Python : elle exige
+// python3 sur la machine, ce que les images Node des hebergeurs n'ont pas.
+// Les versions "_linux" sont autonomes et demarrent sans rien installer.
 const ASSET =
   process.platform === "win32"
     ? "yt-dlp.exe"
     : process.platform === "darwin"
       ? "yt-dlp_macos"
-      : "yt-dlp";
+      : process.arch === "arm64"
+        ? "yt-dlp_linux_aarch64"
+        : "yt-dlp_linux";
 
 const TARGET = path.join(BIN_DIR, process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
 

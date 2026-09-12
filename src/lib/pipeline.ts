@@ -207,11 +207,62 @@ export async function runPipeline(
   }
 }
 
-/** Cree le job puis lance le traitement en arriere-plan. */
+/* ============================================================================
+   File d'attente des analyses.
+
+   Chaque analyse fait tourner ffmpeg et plusieurs appels a Claude : sans
+   limite, cinq clients qui lancent en meme temps saturent la memoire et le
+   serveur tombe pour tout le monde. Au-dela de MAX_ANALYSES_SIMULTANEES, les
+   analyses attendent leur tour, et le client voit sa place dans la file.
+
+   Limite connue, traitee en phase 2 : la file vit en memoire. Un redemarrage
+   du serveur fait perdre les analyses en attente comme celles en cours.
+   ========================================================================== */
+
+const MAX_SIMULTANEES = Math.max(1, Math.floor(Number(process.env.MAX_ANALYSES_SIMULTANEES) || 2));
+
+type Tache = { id: string; lancer: () => Promise<void> };
+type File = { enCours: number; attente: Tache[] };
+
+// globalThis : la file survit au rechargement a chaud en developpement.
+const memoire = globalThis as unknown as { __hklFileAnalyses?: File };
+const file: File = memoire.__hklFileAnalyses ?? (memoire.__hklFileAnalyses = { enCours: 0, attente: [] });
+
+function annoncerPositions(): void {
+  file.attente.forEach((t, i) => {
+    updateStepDetail(
+      t.id,
+      "acquisition",
+      i === 0
+        ? "En file d'attente — ton analyse démarre dès qu'un créneau se libère"
+        : `En file d'attente — ${i} analyse${i > 1 ? "s" : ""} avant la tienne`,
+    );
+  });
+}
+
+function demarrerSuivantes(): void {
+  while (file.enCours < MAX_SIMULTANEES && file.attente.length > 0) {
+    const tache = file.attente.shift()!;
+    file.enCours++;
+    void tache.lancer().finally(() => {
+      file.enCours--;
+      demarrerSuivantes();
+    });
+  }
+  annoncerPositions();
+}
+
+/** Cree le job puis le place dans la file ; il demarre des qu'un creneau est libre. */
 export function launchAnalysis(source: SourceEntree, utilisateurId?: string): string {
   const id = newAnalysisId();
   createJob(id, libelleSource(source), source.type === "url" ? "url" : "fichier");
   // Volontairement non attendu : la progression est suivie via le flux SSE.
-  void runPipeline(id, source, utilisateurId);
+  file.attente.push({ id, lancer: () => runPipeline(id, source, utilisateurId) });
+  demarrerSuivantes();
   return id;
+}
+
+/** Etat de la file, pour l'administration. */
+export function etatFileAnalyses(): { enCours: number; enAttente: number; maximum: number } {
+  return { enCours: file.enCours, enAttente: file.attente.length, maximum: MAX_SIMULTANEES };
 }
