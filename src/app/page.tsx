@@ -21,6 +21,7 @@ import { Tarifs } from "@/components/landing/Tarifs";
 import { MarqueHooked } from "@/components/Logo";
 import { CarteVivante } from "@/components/Reveal";
 import { ENGAGEMENTS, PALIERS, prixMensuelAvecRemise } from "@/lib/tarifs";
+import { CARTE_ACTIVE, MOYENS_PAIEMENT } from "@/lib/public";
 
 /* ------------------------------------------------------------------ donnees */
 
@@ -36,17 +37,36 @@ const RESULTATS: Resultat[] = [
   { produit: "Projecteur astronaute", categorie: "Déco", score: 85, achat: "3,10 $", vente: "5 900 DA", profit: "+1 720 DA", hook: 9 },
 ];
 
-/** Comment on demarre : la question numero un d'un acheteur qui paie sans carte. */
-const DEMARRAGE = [
-  { n: "01", titre: "Crée ton compte", texte: "Nom, téléphone, email. Deux minutes, aucune carte demandée." },
-  { n: "02", titre: "On t'appelle", texte: "Pour confirmer ta formule et te donner les coordonnées de paiement." },
-  { n: "03", titre: "Paie par BaridiMob ou CCP", texte: "Tu envoies la capture du versement sur WhatsApp." },
-  { n: "04", titre: "Reçois ton code", texte: "Tu le saisis dans ton compte : tes crédits arrivent aussitôt." },
-];
+/** Comment on demarre : la question numero un d'un acheteur, avant de payer. */
+const DEMARRAGE = CARTE_ACTIVE
+  ? [
+      { n: "01", titre: "Crée ton compte", texte: "Nom, téléphone, email. Deux minutes." },
+      { n: "02", titre: "Choisis ta formule", texte: "Mensuelle sans engagement, ou 6 et 12 mois moins chers." },
+      { n: "03", titre: "Paie en 30 secondes", texte: "Carte Visa, Mastercard ou RedotPay. En dinars : BaridiMob ou CCP." },
+      { n: "04", titre: "Analyse tout de suite", texte: "Tes crédits arrivent à la seconde. Colle ta première créative." },
+    ]
+  : [
+      { n: "01", titre: "Crée ton compte", texte: "Nom, téléphone, email. Deux minutes, aucune carte demandée." },
+      { n: "02", titre: "On t'appelle", texte: "Pour confirmer ta formule et te donner les coordonnées de paiement." },
+      { n: "03", titre: "Paie par BaridiMob ou CCP", texte: "Tu envoies la capture du versement sur WhatsApp." },
+      { n: "04", titre: "Reçois ton code", texte: "Tu le saisis dans ton compte : tes crédits arrivent aussitôt." },
+    ];
+
+const TITRE_DEMARRAGE = CARTE_ACTIVE
+  ? "Prêt à analyser en deux minutes."
+  : "Sans carte bancaire. Activé le jour même.";
+const SOUS_TITRE_DEMARRAGE = CARTE_ACTIVE
+  ? "Un compte, un paiement, et ta première analyse part aussitôt. Aucune installation."
+  : "Pas de paiement en ligne : un appel, un versement BaridiMob ou CCP, et un code qui charge tes crédits.";
 
 const FAQ = [
   { q: "Est-ce que ça marche avec les vidéos TikTok et Instagram ?", r: "Oui. Tu colles le lien du post, ou tu déposes directement le fichier vidéo ou l'image — c'est la méthode la plus fiable, les plateformes bloquant souvent la récupération automatique. Le rapport est identique dans les deux cas." },
-  { q: "Comment se passe le paiement ?", r: "Sans carte bancaire. Tu crées ton compte, on t'appelle pour confirmer ta formule, tu paies par BaridiMob ou versement CCP, et tu reçois un code qui charge tes crédits immédiatement." },
+  {
+    q: "Comment se passe le paiement ?",
+    r: CARTE_ACTIVE
+      ? "Par carte Visa, Mastercard ou RedotPay depuis ton compte : tes crédits arrivent à la seconde. En Algérie, tu peux aussi payer en dinars par BaridiMob ou CCP : on t'appelle, tu envoies la capture, tu reçois un code."
+      : "Sans carte bancaire. Tu crées ton compte, on t'appelle pour confirmer ta formule, tu paies par BaridiMob ou versement CCP, et tu reçois un code qui charge tes crédits immédiatement.",
+  },
   { q: "Les prix de sourcing sont-ils fiables ?", r: "Ce sont des fourchettes estimées par l'IA, avec un indice de fiabilité affiché. Les liens Alibaba et 1688 générés te donnent les prix réels des fournisseurs en un clic, et la recherche par image retrouve le produit exact." },
   { q: "Le calcul de rentabilité est-il adapté à l'Algérie ?", r: "C'est son seul objet : paiement à la livraison, taux de livraison réel (55 à 75 %), coût des retours, tarifs à domicile et en stop desk, taux de change du marché parallèle. Chaque hypothèse est ajustable." },
   { q: "Que se passe-t-il si une analyse échoue ?", r: "Tes crédits te sont rendus automatiquement. Une analyse ne se facture que si tu reçois ton rapport." },
@@ -71,9 +91,9 @@ const ANGLES_CHIPS = [
 ];
 
 /** Le prix d'appel affiche : le palier le moins cher, a la meilleure remise. */
-const PRIX_PLANCHER = Math.min(
-  ...PALIERS.map((p) => prixMensuelAvecRemise(p.base, Math.max(...ENGAGEMENTS.map((e) => e.remise)))),
-);
+const REMISE_MAX = Math.max(...ENGAGEMENTS.map((e) => e.remise));
+const PRIX_PLANCHER = Math.min(...PALIERS.map((p) => prixMensuelAvecRemise(p.base, REMISE_MAX)));
+const PRIX_PLANCHER_INTL = Math.min(...PALIERS.map((p) => Math.round(p.baseInternational * (1 - REMISE_MAX))));
 
 const WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP?.replace(/\D/g, "") ?? "";
 const LIEN_WHATSAPP = WHATSAPP
@@ -318,15 +338,16 @@ export default function Landing() {
     surDefilement();
     window.addEventListener("scroll", surDefilement, { passive: true });
 
-    const hero = document.querySelector(".sec-hero");
-    const final = document.querySelector(".sec-final");
+    // La barre s'efface partout ou un bouton identique est deja a l'ecran.
+    const zones = [".sec-hero", ".sec-final", ".cta-demarrer"]
+      .map((c) => document.querySelector(c))
+      .filter((e): e is Element => e !== null);
     const visibles = new Map<Element, boolean>();
     const observateur = new IntersectionObserver((entrees) => {
       entrees.forEach((e) => visibles.set(e.target, e.isIntersecting));
-      setBarreMobile(!visibles.get(hero!) && !visibles.get(final!));
+      setBarreMobile(!zones.some((z) => visibles.get(z)));
     });
-    if (hero) observateur.observe(hero);
-    if (final) observateur.observe(final);
+    zones.forEach((z) => observateur.observe(z));
 
     return () => {
       window.removeEventListener("scroll", surDefilement);
@@ -709,7 +730,7 @@ export default function Landing() {
             </div>
 
             <ul className="hero-sous mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-mist-400 lg:justify-start">
-              {["Résultat en 3 minutes", "Vidéos et images", "Paiement BaridiMob ou CCP"].map((t) => (
+              {["Résultat en 3 minutes", "Vidéos et images", MOYENS_PAIEMENT].map((t) => (
                 <li key={t} className="flex items-center gap-2">
                   <span className="h-1 w-1 rounded-full bg-brand-500" />
                   {t}
@@ -1057,11 +1078,10 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <h2 className="st-titre text-3xl font-medium tracking-[-0.02em] text-mist-100 sm:text-4xl">
-              {mots("Sans carte bancaire. Activé le jour même.")}
+              {mots(TITRE_DEMARRAGE)}
             </h2>
             <p className="st-reveal mt-3 max-w-xl text-sm font-light leading-relaxed text-mist-300 sm:text-base">
-              Pas de paiement en ligne : un appel, un versement BaridiMob ou CCP, et un code qui
-              charge tes crédits.
+              {SOUS_TITRE_DEMARRAGE}
             </p>
           </div>
 
@@ -1089,7 +1109,7 @@ export default function Landing() {
             </ol>
           </div>
 
-          <div className="st-reveal mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+          <div className="cta-demarrer st-reveal mt-14 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             <Link
               href="/inscription"
               className="cta-aurora inline-block rounded-full px-7 py-3 text-sm font-semibold"
@@ -1164,8 +1184,8 @@ export default function Landing() {
             </Magnetic>
           </div>
           <p className="st-reveal mt-4 text-xs text-mist-400">
-            À partir de {PRIX_PLANCHER.toLocaleString("fr-FR")} DA par mois · formule mensuelle
-            sans engagement disponible
+            À partir de {PRIX_PLANCHER.toLocaleString("fr-FR")} DA ou {PRIX_PLANCHER_INTL} $ par mois ·
+            formule mensuelle sans engagement disponible
           </p>
         </div>
       </section>

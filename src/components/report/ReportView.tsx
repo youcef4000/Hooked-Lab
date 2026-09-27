@@ -8,6 +8,7 @@ import { AnglesTab } from "./AnglesTab";
 import { SourcingTab } from "./SourcingTab";
 import { ProfitTab } from "./ProfitTab";
 import { LaunchTab } from "./LaunchTab";
+import { PartageResume } from "./PartageResume";
 import type { Report } from "@/types/analysis";
 
 /**
@@ -143,6 +144,8 @@ export function ReportView({
             )}
           </div>
 
+          <PartageResume report={report} />
+
           {report.media.audio && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <audio
@@ -178,7 +181,7 @@ export function ReportView({
       )}
 
       {/* Onglets : barre sticky sous l'en-tete, pilules colorees --------- */}
-      <div className="sticky top-14 z-30 -mx-5 mb-6 border-b border-ink-800 bg-ink-950/85 px-5 py-3 backdrop-blur">
+      <div className="sticky top-14 z-30 -mx-4 mb-6 border-b border-ink-800 bg-ink-950/85 px-4 py-3 backdrop-blur sm:-mx-5 sm:px-5">
         <div className="barre-masquee flex gap-2 overflow-x-auto pb-0.5">
           {ONGLETS.map((o) => (
             <button

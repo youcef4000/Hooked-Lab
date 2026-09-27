@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { SelecteurDevise, useDevise } from "../Devise";
+import { CARTE_ACTIVE } from "@/lib/public";
 import {
   COUT_CREDITS,
   ENGAGEMENTS,
   PALIERS,
   RECHARGES,
-  prixMensuelAvecRemise,
-  prixParCredit,
-  prixTotalEngagement,
-  creditsBonus,
+  formatPrix,
+  formatPrixCredit,
+  prixPalier,
+  prixRecharge,
+  totalPalier,
+  videosPour,
 } from "@/lib/tarifs";
 
 /* ============================================================================
@@ -21,17 +25,16 @@ import {
    qu'il consomme s'abonne plus facilement qu'un visiteur qui doit deviner.
    ========================================================================== */
 
-const fmt = (n: number) => n.toLocaleString("fr-FR");
-
 export function Tarifs() {
-  const [dureeIndex, setDureeIndex] = useState(1); // 6 mois par defaut
+  const [dureeIndex, setDureeIndex] = useState(0); // mensuel : le plus simple pour commencer
   const engagement = ENGAGEMENTS[dureeIndex];
+  const [devise, setDevise] = useDevise();
 
   return (
     <section id="tarifs" className="scroll-mt-20 border-b border-ink-800 px-5 py-20 sm:py-28">
       <div className="mx-auto max-w-5xl">
         <h2 className="st-titre text-center text-3xl font-medium tracking-[-0.02em] text-mist-100 sm:text-4xl">
-          {"Des abonnements pensés pour le marché algérien".split(" ").map((m, i) => (
+          {(devise === "DZD" ? "Des abonnements pensés pour le marché algérien" : "Des formules simples, sans engagement").split(" ").map((m, i) => (
             <span key={i} className="st-mot inline-block">
               {m}&nbsp;
             </span>
@@ -43,7 +46,7 @@ export function Tarifs() {
         </p>
 
         {/* Selecteur de duree ------------------------------------------- */}
-        <div className="st-reveal mt-8 flex justify-center">
+        <div className="st-reveal mt-8 flex flex-wrap items-center justify-center gap-3">
           <div className="inline-flex rounded-full border border-ink-700 bg-ink-900 p-1">
             {ENGAGEMENTS.map((e, i) => (
               <button
@@ -62,21 +65,21 @@ export function Tarifs() {
                       i === dureeIndex ? "text-ink-950/70" : "text-brand-400"
                     }`}
                   >
-                    −{Math.round(e.remise * 100)} % + bonus
+                    −{Math.round(e.remise * 100)} %
                   </span>
                 )}
               </button>
             ))}
           </div>
+          <SelecteurDevise devise={devise} onChange={setDevise} />
         </div>
 
         {/* Paliers ------------------------------------------------------ */}
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {PALIERS.map((p) => {
-            const mensuel = prixMensuelAvecRemise(p.base, engagement.remise);
-            const total = prixTotalEngagement(p.base, engagement.remise, engagement.mois);
-            const videos = Math.floor(p.creditsMensuels / COUT_CREDITS.videoMoyenne);
-            const bonus = creditsBonus(p.creditsMensuels, engagement.moisBonus);
+            const mensuel = prixPalier(p, devise, engagement.remise);
+            const total = totalPalier(p, devise, engagement.remise, engagement.mois);
+            const videos = videosPour(p.creditsMensuels);
 
             return (
               <div
@@ -102,38 +105,25 @@ export function Tarifs() {
                   <div
                     className={`text-3xl font-medium tracking-tight ${p.populaire ? "text-gold" : "text-mist-100"}`}
                   >
-                    {fmt(mensuel)} DA
+                    {formatPrix(mensuel, devise)}
                     <span className="text-sm font-normal text-mist-400"> / mois</span>
                   </div>
                   {engagement.remise > 0 && (
                     <div className="mt-1 text-xs text-mist-400">
-                      <span className="line-through">{fmt(p.base)} DA</span> — soit {fmt(total)} DA
-                      pour {engagement.mois} mois
+                      <span className="line-through">{formatPrix(prixPalier(p, devise, 0), devise)}</span> —
+                      soit {formatPrix(total, devise)} pour {engagement.mois} mois
                     </div>
                   )}
                 </div>
 
                 <div className="mt-4 rounded-lg border border-ink-800 bg-ink-950/50 px-3 py-2.5 text-center">
                   <div className="text-lg font-bold tabular-nums text-brand-300">
-                    {fmt(p.creditsMensuels)} crédits
+                    {p.creditsMensuels} crédits
                   </div>
                   <div className="text-[11px] text-mist-400">
-                    par mois — environ {videos} vidéos
+                    par mois — soit {videos} vidéos
                   </div>
 
-                  {/* Le bonus est offert en une fois a la souscription : un gain
-                      immediat convainc mieux qu'une remise etalee. */}
-                  {bonus > 0 && (
-                    <div className="mt-2.5 border-t border-ink-800 pt-2.5">
-                      <div className="text-sm font-bold tabular-nums text-jade">
-                        + {fmt(bonus)} crédits offerts
-                      </div>
-                      <div className="text-[11px] text-mist-400">
-                        soit {engagement.moisBonus} mois
-                        {engagement.moisBonus > 1 ? " de crédits" : " de crédits"} en cadeau
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <ul className="mt-5 flex-1 space-y-2">
@@ -154,7 +144,7 @@ export function Tarifs() {
                 </ul>
 
                 <Link
-                  href="/analyser"
+                  href="/inscription"
                   className={`mt-6 rounded-full px-5 py-2.5 text-center text-sm font-semibold ${
                     p.populaire
                       ? "cta-aurora"
@@ -174,15 +164,13 @@ export function Tarifs() {
             Ce que consomme une analyse
           </h3>
           <p className="mx-auto mt-1.5 max-w-lg text-center text-xs text-mist-400">
-            Une vidéo longue demande plus de traitement qu&apos;une image : le coût suit la durée
-            et la complexité, jamais un forfait aveugle.
+            Un tarif fixe, connu avant de lancer. Une analyse qui échoue ne coûte rien : les
+            crédits reviennent automatiquement.
           </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          <div className="mx-auto mt-5 grid max-w-md grid-cols-2 gap-3">
             {[
+              { t: "Vidéo", c: COUT_CREDITS.video, d: "Toutes durées" },
               { t: "Image", c: COUT_CREDITS.image, d: "Créative statique" },
-              { t: "Vidéo courte", c: COUT_CREDITS.videoCourte, d: "Moins de 30 s" },
-              { t: "Vidéo moyenne", c: COUT_CREDITS.videoMoyenne, d: "30 à 60 s" },
-              { t: "Vidéo longue", c: COUT_CREDITS.videoLongue, d: "Plus de 60 s" },
             ].map((x) => (
               <div
                 key={x.t}
@@ -220,11 +208,13 @@ export function Tarifs() {
               >
                 <div className="text-[11px] uppercase tracking-wide text-mist-400">{r.libelle}</div>
                 <div className="mt-1 text-xl font-bold tabular-nums text-mist-100">
-                  {fmt(r.credits)} crédits
+                  {r.credits} crédits
                 </div>
-                <div className="mt-1 text-lg font-medium text-brand-300">{fmt(r.prix)} DA</div>
+                <div className="mt-1 text-lg font-medium text-brand-300">
+                  {formatPrix(prixRecharge(r, devise), devise)}
+                </div>
                 <div className="mt-0.5 text-[11px] text-mist-400">
-                  {prixParCredit(r.prix, r.credits)} DA le crédit
+                  {formatPrixCredit(prixRecharge(r, devise), r.credits, devise)} le crédit
                 </div>
               </div>
             ))}
@@ -232,8 +222,9 @@ export function Tarifs() {
         </div>
 
         <p className="st-reveal mt-6 text-center text-xs leading-relaxed text-mist-400">
-          Paiement par BaridiMob ou versement CCP, après un appel de confirmation — aucune carte
-          bancaire.{" "}
+          {CARTE_ACTIVE
+            ? "Carte Visa, Mastercard ou RedotPay : crédits ajoutés à la seconde. En Algérie, aussi par BaridiMob ou CCP."
+            : "Paiement par BaridiMob ou versement CCP, après un appel de confirmation."}{" "}
           <a href="#demarrer" className="text-brand-400 underline underline-offset-4 hover:text-brand-300">
             Voir comment ça se passe
           </a>

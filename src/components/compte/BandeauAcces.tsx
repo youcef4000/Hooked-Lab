@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CARTE_ACTIVE } from "@/lib/public";
 
 /* ============================================================================
    Bandeau affiche au-dessus de la zone de depot quand l'analyse n'est pas
@@ -22,7 +23,9 @@ export function BandeauAcces({
     visiteur: {
       titre: "Crée ton compte pour lancer une analyse",
       texte:
-        "Deux minutes, puis on t'appelle pour l'activer. Tu peux déjà parcourir un rapport d'exemple pour voir ce que tu recevras.",
+        CARTE_ACTIVE
+          ? "Deux minutes, un paiement par carte ou en dinars, et ta première analyse part aussitôt."
+          : "Deux minutes, puis on t'appelle pour l'activer. Tu peux déjà parcourir un rapport d'exemple pour voir ce que tu recevras.",
       action: { href: "/inscription", label: "Créer mon compte" },
       secondaire: { href: "/connexion", label: "J'ai déjà un compte" },
     },
@@ -45,7 +48,7 @@ export function BandeauAcces({
   // doit voler la vedette a l'entree de la page. Il informe, il n'expose pas.
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[var(--r-md)] border border-brand-500/25 bg-brand-500/[0.06] px-4 py-2.5">
-      <p className="min-w-0 flex-1 text-sm leading-snug text-mist-200">
+      <p className="min-w-[15rem] flex-1 text-sm leading-snug text-mist-200">
         <span className="font-medium text-brand-300">{contenu.titre}</span>
         <span className="hidden text-mist-400 sm:inline"> — {contenu.texte}</span>
       </p>

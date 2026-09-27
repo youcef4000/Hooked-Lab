@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { config } from "@/lib/config";
 import { autoriserAnalyse, peutLancerAnalyse } from "@/lib/garde";
-import { launchAnalysis } from "@/lib/pipeline";
+import { MESSAGE_MAINTENANCE, arretEnCours, launchAnalysis } from "@/lib/pipeline";
 import {
   EXTENSIONS_ACCEPTEES,
   TAILLE_MAX_OCTETS,
@@ -34,6 +34,11 @@ export async function POST(request: Request) {
       { error: "Le service d'analyse est momentanément indisponible. Réessaie dans quelques minutes." },
       { status: 503 },
     );
+  }
+
+  // Mise a jour en cours : on ne lance plus rien, et on ne debite rien.
+  if (arretEnCours()) {
+    return NextResponse.json({ error: MESSAGE_MAINTENANCE }, { status: 503 });
   }
 
   // Controle d'acces AVANT de recevoir le fichier : sinon n'importe quel

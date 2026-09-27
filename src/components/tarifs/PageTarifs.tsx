@@ -3,15 +3,19 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CarteVivante, Reveal } from "../Reveal";
+import { SelecteurDevise, useDevise } from "../Devise";
+import { CARTE_ACTIVE } from "@/lib/public";
 import {
   COUT_CREDITS,
   ENGAGEMENTS,
   PALIERS,
   RECHARGES,
-  creditsBonus,
-  prixMensuelAvecRemise,
-  prixParCredit,
-  prixTotalEngagement,
+  formatPrix,
+  formatPrixCredit,
+  prixPalier,
+  prixRecharge,
+  totalPalier,
+  videosPour,
 } from "@/lib/tarifs";
 
 /* ============================================================================
@@ -29,13 +33,9 @@ import {
    au moment de payer — c'est la question qui bloque le plus d'inscriptions.
    ========================================================================== */
 
-const fmt = (n: number) => n.toLocaleString("fr-FR");
-
 const CONSOMMATION = [
+  { quoi: "Vidéo publicitaire", cout: COUT_CREDITS.video, detail: "toutes durées, 3 premières minutes analysées" },
   { quoi: "Image publicitaire", cout: COUT_CREDITS.image, detail: "visuel statique, carrousel" },
-  { quoi: "Vidéo courte", cout: COUT_CREDITS.videoCourte, detail: "moins de 30 secondes" },
-  { quoi: "Vidéo moyenne", cout: COUT_CREDITS.videoMoyenne, detail: "30 à 60 secondes" },
-  { quoi: "Vidéo longue", cout: COUT_CREDITS.videoLongue, detail: "plus d'une minute" },
 ];
 
 const QUESTIONS = [
@@ -48,8 +48,10 @@ const QUESTIONS = [
     r: "Non. Les crédits restent sur ton compte tant que ton abonnement court. Si tu recharges avant l'échéance, les jours restants s'ajoutent à la nouvelle période au lieu d'être écrasés.",
   },
   {
-    q: "Pourquoi une vidéo longue coûte-t-elle plus cher ?",
-    r: "Une minute de vidéo, c'est deux fois plus d'images à examiner, deux fois plus d'audio à transcrire. Le coût de traitement suit la durée, et le tarif aussi — plutôt que de faire payer un forfait moyen à tout le monde.",
+    q: "Comment payer ?",
+    r: CARTE_ACTIVE
+      ? "Par carte (Visa, Mastercard, RedotPay) depuis ton compte : les crédits arrivent à la seconde où le paiement est validé. En Algérie, tu peux aussi payer en dinars par BaridiMob ou CCP : on t'appelle, tu envoies la capture, tu reçois ton code."
+      : "En dinars, par BaridiMob ou versement CCP : on t'appelle pour confirmer ta formule, tu envoies la capture, et tu reçois ton code d'activation.",
   },
   {
     q: "Puis-je changer de formule en cours d'abonnement ?",
@@ -62,8 +64,9 @@ const QUESTIONS = [
 ];
 
 export function PageTarifs() {
-  const [dureeIndex, setDureeIndex] = useState(1); // 6 mois : le meilleur rapport
+  const [dureeIndex, setDureeIndex] = useState(0); // mensuel : le plus simple pour commencer
   const engagement = ENGAGEMENTS[dureeIndex];
+  const [devise, setDevise] = useDevise();
 
   return (
     <Reveal className="-mx-4 overflow-x-clip sm:-mx-5">
@@ -79,11 +82,16 @@ export function PageTarifs() {
           </h1>
           <p className="rev mx-auto mt-6 max-w-xl text-base leading-relaxed text-mist-200 sm:text-[17px]">
             Et bien moins cher qu&apos;un stock de 300 pièces d&apos;un produit qui ne se vendra
-            jamais. Paiement par BaridiMob ou CCP, activation dans l&apos;heure.
+            jamais.{" "}
+            {!CARTE_ACTIVE
+              ? "Paiement par BaridiMob ou CCP, activation dans l'heure."
+              : devise === "DZD"
+                ? "Paiement par BaridiMob ou CCP, ou par carte RedotPay : crédits activés le jour même."
+                : "Paiement par carte (Visa, Mastercard, RedotPay) : crédits ajoutés instantanément."}
           </p>
 
-          {/* Selecteur de duree */}
-          <div className="rev mt-9 flex justify-center">
+          {/* Selecteurs de duree et de devise */}
+          <div className="rev mt-9 flex flex-wrap items-center justify-center gap-3">
             <div className="inline-flex rounded-full border border-ink-700 bg-ink-900/80 p-1 backdrop-blur">
               {ENGAGEMENTS.map((e, i) => (
                 <button
@@ -108,13 +116,8 @@ export function PageTarifs() {
                 </button>
               ))}
             </div>
+            <SelecteurDevise devise={devise} onChange={setDevise} />
           </div>
-
-          {engagement.moisBonus > 0 && (
-            <p className="rev mt-4 text-sm text-jade">
-              {engagement.moisBonus} mois de crédits offerts en plus, versés dès l&apos;activation.
-            </p>
-          )}
         </div>
       </section>
 
@@ -123,11 +126,9 @@ export function PageTarifs() {
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-4 lg:grid-cols-3">
             {PALIERS.map((p) => {
-              const mensuel = prixMensuelAvecRemise(p.base, engagement.remise);
-              const total = prixTotalEngagement(p.base, engagement.remise, engagement.mois);
-              const bonus = creditsBonus(p.creditsMensuels, engagement.moisBonus);
-              const creditsTotal = p.creditsMensuels * engagement.mois + bonus;
-              const videos = Math.floor(p.creditsMensuels / COUT_CREDITS.videoMoyenne);
+              const mensuel = prixPalier(p, devise, engagement.remise);
+              const total = totalPalier(p, devise, engagement.remise, engagement.mois);
+              const videos = videosPour(p.creditsMensuels);
 
               return (
                 <div key={p.nom} className="rev">
@@ -148,13 +149,13 @@ export function PageTarifs() {
                     <div className="mt-6">
                       <div className="flex items-baseline gap-1.5">
                         <span className="font-display text-4xl font-medium tracking-tight text-mist-100">
-                          {fmt(mensuel)}
+                          {formatPrix(mensuel, devise)}
                         </span>
-                        <span className="text-sm text-mist-400">DA / mois</span>
+                        <span className="text-sm text-mist-400">/ mois</span>
                       </div>
                       {engagement.mois > 1 && (
                         <p className="mt-1.5 text-xs text-mist-500">
-                          {fmt(total)} DA réglés en une fois pour {engagement.mois} mois
+                          {formatPrix(total, devise)} réglés en une fois pour {engagement.mois} mois
                         </p>
                       )}
                     </div>
@@ -162,18 +163,13 @@ export function PageTarifs() {
                     <div className="mt-5 rounded-[var(--r-md)] border border-ink-800 bg-ink-950/50 px-4 py-3">
                       <p className="text-sm text-mist-100">
                         <span className="font-semibold text-brand-300">
-                          {fmt(p.creditsMensuels)} crédits
+                          {p.creditsMensuels} crédits
                         </span>{" "}
                         par mois
                       </p>
                       <p className="mt-0.5 text-xs text-mist-400">
-                        environ {videos} vidéos analysées
+                        soit {videos} vidéos analysées
                       </p>
-                      {bonus > 0 && (
-                        <p className="mt-2 border-t border-ink-800 pt-2 text-xs text-jade">
-                          + {fmt(bonus)} crédits offerts · {fmt(creditsTotal)} au total
-                        </p>
-                      )}
                     </div>
 
                     <ul className="mt-5 flex-1 space-y-2.5">
@@ -204,7 +200,7 @@ export function PageTarifs() {
                       Choisir {p.nom}
                     </Link>
                     <p className="mt-2.5 text-center text-[11px] text-mist-500">
-                      {prixParCredit(mensuel, p.creditsMensuels)} DA le crédit
+                      {formatPrixCredit(mensuel, p.creditsMensuels, devise)} le crédit
                     </p>
                   </CarteVivante>
                 </div>
@@ -229,9 +225,8 @@ export function PageTarifs() {
                 Ce que coûte chaque analyse
               </h2>
               <p className="mt-4 text-[15px] leading-relaxed text-mist-300">
-                Le tarif suit la durée : une vidéo d&apos;une minute demande deux fois plus de
-                travail qu&apos;une vidéo de vingt secondes. Tu ne paies donc pas un forfait moyen
-                pour tout le monde.
+                Un tarif fixe, sans surprise : une vidéo coûte le même nombre de crédits qu&apos;elle
+                dure dix secondes ou deux minutes. Tu sais avant de lancer ce que ça va te coûter.
               </p>
               <p className="mt-4 rounded-[var(--r-md)] border border-jade/25 bg-jade/[0.06] px-4 py-3 text-sm leading-relaxed text-mist-200">
                 Une analyse qui échoue ne consomme rien. Les crédits reviennent sur ton compte
@@ -293,7 +288,7 @@ export function PageTarifs() {
 
           <div className="mt-9 grid gap-4 md:grid-cols-3">
             {RECHARGES.map((r) => {
-              const videos = Math.floor(r.credits / COUT_CREDITS.videoMoyenne);
+              const videos = videosPour(r.credits);
               const populaire = "populaire" in r && r.populaire;
               return (
                 <div key={r.credits} className="rev">
@@ -310,15 +305,17 @@ export function PageTarifs() {
                     </div>
 
                     <p className="mt-4 font-display text-3xl font-medium tracking-tight text-brand-300">
-                      {fmt(r.credits)}
+                      {r.credits}
                       <span className="ml-1.5 text-sm font-normal text-mist-400">crédits</span>
                     </p>
                     <p className="mt-1 text-xs text-mist-500">environ {videos} vidéos</p>
 
                     <div className="mt-auto pt-5">
-                      <p className="text-lg font-medium text-mist-100">{fmt(r.prix)} DA</p>
+                      <p className="text-lg font-medium text-mist-100">
+                        {formatPrix(prixRecharge(r, devise), devise)}
+                      </p>
                       <p className="mt-0.5 text-xs text-mist-500">
-                        {prixParCredit(r.prix, r.credits)} DA le crédit
+                        {formatPrixCredit(prixRecharge(r, devise), r.credits, devise)} le crédit
                       </p>
                     </div>
                   </CarteVivante>
@@ -342,7 +339,7 @@ export function PageTarifs() {
       >
         <div className="mx-auto max-w-6xl">
           <h2 className="rev max-w-lg text-2xl font-medium tracking-[-0.02em] text-mist-100 sm:text-3xl">
-            Comment tu payes, concrètement
+            Payer en dinars, concrètement
           </h2>
 
           <div className="mt-9 grid gap-4 md:grid-cols-4">
@@ -379,8 +376,9 @@ export function PageTarifs() {
           </div>
 
           <p className="rev mt-6 text-sm leading-relaxed text-mist-400">
-            Aucun paiement en ligne, aucune carte à saisir. C&apos;est un appel téléphonique qui
-            valide ton compte — et c&apos;est aussi l&apos;occasion de nous poser tes questions.
+            {CARTE_ACTIVE
+              ? "C'est le chemin en dinars. Tu as une carte Visa, Mastercard ou RedotPay ? Paie directement depuis ton compte : tes crédits arrivent à la seconde, sans attendre l'appel."
+              : "Aucun paiement en ligne, aucune carte à saisir. C'est un appel téléphonique qui valide ton compte — et c'est aussi l'occasion de nous poser tes questions."}
           </p>
         </div>
       </section>
@@ -427,7 +425,9 @@ export function PageTarifs() {
             Teste un produit avant d&apos;acheter le stock.
           </h2>
           <p className="rev mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-mist-300">
-            Crée ton compte maintenant, on t&apos;appelle pour l&apos;activer.
+            {CARTE_ACTIVE
+              ? "Crée ton compte, paie, et ta première analyse part dans la minute."
+              : "Crée ton compte maintenant, on t'appelle pour l'activer."}
           </p>
           <div className="rev mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link

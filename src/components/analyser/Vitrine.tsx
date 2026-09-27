@@ -5,6 +5,7 @@ import { UploadDropzone } from "../UploadDropzone";
 import { AnalyzeForm } from "../AnalyzeForm";
 import { CarteVivante, Reveal } from "../Reveal";
 import type { ReportSummary } from "@/types/analysis";
+import { CARTE_ACTIVE } from "@/lib/public";
 
 /* ============================================================================
    Page d'analyse, version visiteur.
@@ -300,8 +301,9 @@ export function Vitrine({ recentes }: { recentes: ReportSummary[] }) {
             La prochaine créative que tu vois passer peut devenir ton produit gagnant.
           </h2>
           <p className="rev mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-mist-300">
-            Crée ton compte, on t&apos;appelle pour l&apos;activer, et tu lances ta première analyse
-            dans la foulée.
+            {CARTE_ACTIVE
+              ? "Crée ton compte, choisis ta formule, et ta première analyse part dans la minute."
+              : "Crée ton compte, on t'appelle pour l'activer, et tu lances ta première analyse dans la foulée."}
           </p>
           <div className="rev mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link

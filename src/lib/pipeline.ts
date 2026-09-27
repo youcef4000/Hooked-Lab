@@ -315,3 +315,36 @@ export function launchAnalysis(source: SourceEntree, utilisateurId?: string, mon
 export function etatFileAnalyses(): { enCours: number; enAttente: number; maximum: number } {
   return { enCours: file.enCours, enAttente: file.attente.length, maximum: MAX_SIMULTANEES };
 }
+
+/* ============================================================================
+   Arret propre, pour les mises a jour.
+
+   Quand l'hebergeur remplace le serveur, il envoie d'abord un signal d'arret
+   (SIGTERM). Plutot que de mourir sur-le-champ en coupant les analyses en
+   cours, le serveur refuse les nouvelles analyses (message clair, rien n'est
+   debite), laisse terminer celles qui tournent et celles deja en file, puis
+   s'arrete. Voir demarrage.ts et render.yaml (maxShutdownDelaySeconds).
+   ========================================================================== */
+
+const etatArret = globalThis as unknown as { __hklArret?: boolean };
+
+export function arretEnCours(): boolean {
+  return etatArret.__hklArret === true;
+}
+
+export function demanderArret(): void {
+  etatArret.__hklArret = true;
+}
+
+/** Resout quand plus aucune analyse ne tourne ni n'attend, ou au bout du delai. */
+export async function attendreFinAnalyses(delaiMs: number): Promise<boolean> {
+  const limite = Date.now() + delaiMs;
+  while (Date.now() < limite) {
+    if (file.enCours === 0 && file.attente.length === 0) return true;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return file.enCours === 0 && file.attente.length === 0;
+}
+
+export const MESSAGE_MAINTENANCE =
+  "Mise à jour du service en cours : réessaie dans deux minutes. Rien n'a été débité.";

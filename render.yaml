@@ -14,11 +14,14 @@ services:
   - type: web
     name: hooked-lab
     runtime: node
-    # Francfort : la region Render la plus proche de l'Algerie.
+    # Francfort : la region Render la plus proche de l'Algerie et de l'Europe.
     region: frankfurt
     # Standard = 2 Go de memoire. Suffisant tant que la transcription est
     # confiee a Groq ; Whisper en local exigerait la machine au-dessus.
     plan: standard
+
+    # Le site en ligne suit la branche "main", et elle seule.
+    branch: main
 
     # --omit=optional : n'installe pas Whisper local (plusieurs centaines de
     # Mo inutiles en production). "setup" telecharge yt-dlp pour Linux.
@@ -26,11 +29,14 @@ services:
     startCommand: npm start
     healthCheckPath: /api/sante
 
-    # Mise en ligne manuelle : tant que les analyses tournent dans le meme
-    # processus que le site, une mise a jour interrompt celles en cours. On
-    # deploie donc a une heure creuse, en cliquant, plutot qu'a chaque envoi
-    # sur GitHub. A repasser sur "true" apres la phase 2 (file d'attente).
+    # Rien ne se met a jour sans ton clic : un envoi sur GitHub ne touche pas
+    # au site en ligne tant que tu n'as pas clique sur "Manual Deploy".
     autoDeploy: false
+
+    # A la mise a jour, le serveur recoit un signal d'arret : il refuse alors
+    # les nouvelles analyses et laisse finir celles en cours, jusqu'a 5
+    # minutes, avant de s'eteindre (voir src/lib/demarrage.ts).
+    maxShutdownDelaySeconds: 300
 
     # Le disque de l'application est efface a chaque mise a jour. Comptes,
     # codes, commandes et analyses vivent donc sur ce disque persistant.
@@ -53,6 +59,9 @@ services:
         value: "132"
       - key: USD_TO_DZD_PARALLEL
         value: "252"
+      # L'application gere elle-meme l'arret propre (fin des analyses).
+      - key: NEXT_MANUAL_SIG_HANDLE
+        value: "true"
 
       # --- Secrets tires au hasard par Render --------------------------------
       - key: ADMIN_SECRET
@@ -72,4 +81,18 @@ services:
       - key: NEXT_PUBLIC_META_PIXEL_ID
         sync: false
       - key: NEXT_PUBLIC_TIKTOK_PIXEL_ID
+        sync: false
+
+      # --- Paiement par carte (Stripe) : facultatif ---------------------------
+      # Cle secrete (sk_live_...) et secret du webhook (whsec_...), puis
+      # NEXT_PUBLIC_PAIEMENT_CARTE=1 pour que le site annonce la carte.
+      # Laisser vide tant que Stripe n'est pas pret : le site reste en dinars.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_PAIEMENT_CARTE
+        sync: false
+      # Ton nom de domaine une fois branche (https://www.exemple.com).
+      - key: NEXT_PUBLIC_SITE_URL
         sync: false

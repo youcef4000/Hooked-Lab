@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isSupportedUrl } from "@/lib/download";
-import { launchAnalysis } from "@/lib/pipeline";
+import { MESSAGE_MAINTENANCE, arretEnCours, launchAnalysis } from "@/lib/pipeline";
 import { config } from "@/lib/config";
 import { autoriserAnalyse } from "@/lib/garde";
 
@@ -9,6 +9,11 @@ export const dynamic = "force-dynamic";
 
 /** Lance une analyse a partir d'un lien de plateforme. */
 export async function POST(request: Request) {
+  // Mise a jour en cours : on ne lance plus rien, et on ne debite rien.
+  if (arretEnCours()) {
+    return NextResponse.json({ error: MESSAGE_MAINTENANCE }, { status: 503 });
+  }
+
   let body: { url?: string };
   try {
     body = await request.json();

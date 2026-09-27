@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { evenement } from "../Pixels";
+import { CARTE_ACTIVE } from "@/lib/public";
 
 /* ============================================================================
    Inscription et connexion.
@@ -69,7 +70,9 @@ export function FormulaireAuth({ mode }: { mode: Mode }) {
         </h1>
         <p className="mt-1.5 text-sm leading-relaxed text-mist-400">
           {inscription
-            ? "Deux minutes. On t'appelle ensuite pour activer ton compte."
+            ? CARTE_ACTIVE
+              ? "Deux minutes. Tu choisis ensuite ta formule et tu paies par carte ou en dinars."
+              : "Deux minutes. On t'appelle ensuite pour activer ton compte."
             : "Content de te revoir."}
         </p>
       </div>
