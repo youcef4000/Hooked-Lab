@@ -1,10 +1,14 @@
 import { GenerateurFormulaire } from "@/components/GenerateurFormulaire";
+import { estConnecte } from "@/lib/admin-auth";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Formulaire de commande",
 };
 
-export default function PageFormulaire() {
+export default async function PageFormulaire() {
+  const proprietaire = await estConnecte();
   return (
     <div>
       <div className="mb-6">
@@ -17,7 +21,7 @@ export default function PageFormulaire() {
           landing HTML ou une page Blogger.
         </p>
       </div>
-      <GenerateurFormulaire />
+      <GenerateurFormulaire proprietaire={proprietaire} />
     </div>
   );
 }

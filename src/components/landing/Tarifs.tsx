@@ -28,10 +28,14 @@ export function Tarifs() {
   const engagement = ENGAGEMENTS[dureeIndex];
 
   return (
-    <section id="tarifs" className="scroll-mt-20 border-b border-ink-800 px-5 py-16">
+    <section id="tarifs" className="scroll-mt-20 border-b border-ink-800 px-5 py-20 sm:py-28">
       <div className="mx-auto max-w-5xl">
-        <h2 className="st-titre text-center text-3xl font-medium tracking-[-0.02em] text-mist-100">
-          Des abonnements pensés pour le marché algérien
+        <h2 className="st-titre text-center text-3xl font-medium tracking-[-0.02em] text-mist-100 sm:text-4xl">
+          {"Des abonnements pensés pour le marché algérien".split(" ").map((m, i) => (
+            <span key={i} className="st-mot inline-block">
+              {m}&nbsp;
+            </span>
+          ))}
         </h2>
         <p className="st-reveal mx-auto mt-3 max-w-xl text-center text-sm font-light text-mist-300">
           Une analyse coûte moins cher qu&apos;une livraison ratée — et peut
@@ -228,11 +232,11 @@ export function Tarifs() {
         </div>
 
         <p className="st-reveal mt-6 text-center text-xs leading-relaxed text-mist-400">
-          Paiement par CIB, Edahabia ou BaridiMob. Pas d&apos;offre gratuite : un rapport complet
-          d&apos;exemple est consultable{" "}
-          <Link href="/analyser" className="text-brand-400 underline hover:text-brand-300">
-            sans créer de compte
-          </Link>
+          Paiement par BaridiMob ou versement CCP, après un appel de confirmation — aucune carte
+          bancaire.{" "}
+          <a href="#demarrer" className="text-brand-400 underline underline-offset-4 hover:text-brand-300">
+            Voir comment ça se passe
+          </a>
           .
         </p>
       </div>

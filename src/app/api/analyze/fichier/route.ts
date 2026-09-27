@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { config } from "@/lib/config";
-import { autoriserAnalyse } from "@/lib/garde";
+import { autoriserAnalyse, peutLancerAnalyse } from "@/lib/garde";
 import { launchAnalysis } from "@/lib/pipeline";
 import {
   EXTENSIONS_ACCEPTEES,
@@ -29,14 +29,18 @@ export const maxDuration = 600;
  */
 export async function POST(request: Request) {
   if (!config.anthropic.apiKey) {
+    console.error("[hooked-lab] ANTHROPIC_API_KEY absente : aucune analyse possible.");
     return NextResponse.json(
-      {
-        error:
-          "ANTHROPIC_API_KEY manquante. Ouvre .env.local a la racine du projet, colle ta cle " +
-          "apres ANTHROPIC_API_KEY= puis relance `npm run dev`.",
-      },
-      { status: 500 },
+      { error: "Le service d'analyse est momentanément indisponible. Réessaie dans quelques minutes." },
+      { status: 503 },
     );
+  }
+
+  // Controle d'acces AVANT de recevoir le fichier : sinon n'importe quel
+  // visiteur pourrait envoyer des centaines de Mo et remplir le disque.
+  const prealable = await peutLancerAnalyse();
+  if (!prealable.ok) {
+    return NextResponse.json({ error: prealable.message }, { status: prealable.statut ?? 402 });
   }
 
   const enTete = request.headers.get("x-nom-fichier");
@@ -110,6 +114,7 @@ export async function POST(request: Request) {
   const id = launchAnalysis(
     { type: "fichier", cheminTemporaire: chemin, nomOriginal, taille },
     acces.utilisateurId,
+    acces.montant,
   );
   return NextResponse.json({ id });
 }

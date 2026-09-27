@@ -1,6 +1,12 @@
 import { cookies } from "next/headers";
 import { authentifier, versPublic } from "@/lib/comptes";
 import { COOKIE_SESSION, DUREE_COOKIE, creerJeton, utilisateurCourant } from "@/lib/session";
+import { creerLimiteur, ipClient } from "@/lib/limiteur";
+
+// Par adresse ET par email : le premier freine un robot qui essaie mille
+// comptes, le second un robot qui essaie mille mots de passe sur un compte.
+const tropParIp = creerLimiteur("connexion-ip", 10 * 60_000, 20);
+const tropParEmail = creerLimiteur("connexion-email", 10 * 60_000, 8);
 
 /* Connexion, deconnexion, et lecture de la session en cours. */
 
@@ -22,7 +28,15 @@ export async function POST(requete: Request): Promise<Response> {
     return Response.json({ ok: false, message: "Requête illisible." }, { status: 400 });
   }
 
-  const resultat = authentifier(String(corps.email ?? ""), String(corps.motDePasse ?? ""));
+  const email = String(corps.email ?? "").trim().toLowerCase();
+  if (tropParIp(ipClient(requete)) || tropParEmail(email)) {
+    return Response.json(
+      { ok: false, message: "Trop de tentatives. Réessaie dans dix minutes." },
+      { status: 429 },
+    );
+  }
+
+  const resultat = authentifier(email, String(corps.motDePasse ?? ""));
   if (!resultat.ok || !resultat.utilisateur) {
     // Ralentit le tatonnement automatique sans gener une personne reelle.
     await pause(500);

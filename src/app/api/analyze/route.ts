@@ -22,18 +22,18 @@ export async function POST(request: Request) {
   }
   if (!isSupportedUrl(url)) {
     return NextResponse.json(
-      { error: "Lien invalide. Il doit commencer par http:// ou https://" },
+      {
+        error:
+          "Lien non pris en charge. Colle le lien d'une vidéo TikTok, Instagram, Facebook ou YouTube — ou dépose directement le fichier.",
+      },
       { status: 400 },
     );
   }
   if (!config.anthropic.apiKey) {
+    console.error("[hooked-lab] ANTHROPIC_API_KEY absente : aucune analyse possible.");
     return NextResponse.json(
-      {
-        error:
-          "ANTHROPIC_API_KEY manquante. Ouvre .env.local a la racine du projet, colle ta cle " +
-          "apres ANTHROPIC_API_KEY= puis relance `npm run dev`.",
-      },
-      { status: 500 },
+      { error: "Le service d'analyse est momentanément indisponible. Réessaie dans quelques minutes." },
+      { status: 503 },
     );
   }
 
@@ -44,6 +44,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: acces.message }, { status: acces.statut ?? 402 });
   }
 
-  const id = launchAnalysis({ type: "url", url }, acces.utilisateurId);
+  const id = launchAnalysis({ type: "url", url }, acces.utilisateurId, acces.montant);
   return NextResponse.json({ id });
 }

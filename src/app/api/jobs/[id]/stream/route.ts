@@ -1,5 +1,6 @@
 import { getJob, subscribe } from "@/lib/jobs";
 import type { Job } from "@/types/analysis";
+import { lecteurCourant, peutVoir } from "@/lib/acces-analyses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const encoder = new TextEncoder();
+  // Un inconnu recoit le meme evenement qu'une analyse expiree.
+  const autorise = peutVoir(id, await lecteurCourant());
 
   const stream = new ReadableStream({
     start(controller) {
@@ -42,7 +45,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         }
       };
 
-      const unsubscribe = subscribe(id, onUpdate);
+      const unsubscribe = autorise ? subscribe(id, onUpdate) : () => {};
 
       // Commentaire SSE periodique : empeche les proxys de couper la connexion.
       const heartbeat = setInterval(() => {
@@ -57,7 +60,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
       request.signal.addEventListener("abort", close);
 
-      const current = getJob(id);
+      const current = autorise ? getJob(id) : undefined;
       if (current) {
         send(current);
         if (current.status === "termine" || current.status === "erreur") setTimeout(close, 100);
@@ -70,7 +73,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           steps: [],
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          error: "Analyse introuvable ou expiree.",
+          error:
+            "Cette analyse a été interrompue, probablement par une mise à jour du service. Les crédits éventuellement débités t'ont été rendus : relance-la.",
         });
         setTimeout(close, 100);
       }

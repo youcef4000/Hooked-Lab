@@ -33,21 +33,27 @@ function etapes(origine: "url" | "fichier"): { id: StepId; label: string }[] {
   return [
     {
       id: "acquisition",
-      label: origine === "url" ? "Recuperation de la video" : "Reception du fichier",
+      label: origine === "url" ? "Récupération de la vidéo" : "Réception du fichier",
     },
-    { id: "media", label: "Extraction audio et images cles" },
+    { id: "media", label: "Extraction de l'audio et des images clés" },
     { id: "transcription", label: "Transcription du script" },
-    { id: "analyse_creative", label: "Analyse creative et sourcing" },
-    { id: "sourcing_dz", label: "Dossier de lancement Algerie" },
-    { id: "finalisation", label: "Generation du rapport" },
+    { id: "analyse_creative", label: "Analyse créative et sourcing" },
+    { id: "sourcing_dz", label: "Dossier de lancement Algérie" },
+    { id: "finalisation", label: "Génération du rapport" },
   ];
 }
 
-export function createJob(id: string, url: string, origine: "url" | "fichier"): Job {
+export function createJob(
+  id: string,
+  url: string,
+  origine: "url" | "fichier",
+  proprietaireId?: string,
+): Job {
   const job: Job = {
     id,
     url,
     origine,
+    proprietaireId,
     status: "en_attente",
     steps: etapes(origine).map((e) => ({ ...e, status: "attente" })),
     createdAt: Date.now(),

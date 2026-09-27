@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Vitrine } from "@/components/analyser/Vitrine";
 import { PosteTravail } from "@/components/analyser/PosteTravail";
 import { BandeauAcces } from "@/components/compte/BandeauAcces";
-import { listReports } from "@/lib/store";
+import { listDemos, listReports, listReportsDe } from "@/lib/store";
 import { config } from "@/lib/config";
 import { estConnecte } from "@/lib/admin-auth";
 import { utilisateurCourant } from "@/lib/session";
@@ -29,8 +29,7 @@ export default async function PageAnalyser() {
   const actif = abonne !== null && abonnementActif(abonne);
   const peutAnalyser = proprietaire || (actif && abonne.credits > 0);
 
-  const analyses = listReports();
-  const cleManquante = !config.anthropic.apiKey;
+  const cleManquante = proprietaire && !config.anthropic.apiKey;
 
   const alertes = (
     <>
@@ -61,7 +60,11 @@ export default async function PageAnalyser() {
     return (
       <>
         {alertes}
-        <PosteTravail recentes={analyses.slice(0, 8)} credits={abonne.credits} nom={abonne.nom} />
+        <PosteTravail
+          recentes={listReportsDe(abonne.id).slice(0, 8)}
+          credits={abonne.credits}
+          nom={abonne.nom}
+        />
       </>
     );
   }
@@ -71,7 +74,7 @@ export default async function PageAnalyser() {
     return (
       <>
         {alertes}
-        <PosteTravail recentes={analyses.slice(0, 8)} credits={0} nom="" illimite />
+        <PosteTravail recentes={listReports().slice(0, 8)} credits={0} nom="" illimite />
       </>
     );
   }
@@ -79,7 +82,8 @@ export default async function PageAnalyser() {
   return (
     <>
       {alertes}
-      <Vitrine recentes={analyses} />
+      {/* Le visiteur ne voit que les exemples choisis dans l'admin. */}
+      <Vitrine recentes={listDemos()} />
     </>
   );
 }

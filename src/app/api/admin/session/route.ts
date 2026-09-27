@@ -7,7 +7,13 @@ import {
   motDePasseCorrect,
 } from "@/lib/admin-auth";
 
+import { creerLimiteur, ipClient } from "@/lib/limiteur";
+
 /* Connexion et deconnexion de l'espace admin. */
+
+// Le proprietaire se trompe rarement plus de trois fois : au-dela de dix
+// essais en un quart d'heure, c'est un robot.
+const tropDEssais = creerLimiteur("admin", 15 * 60_000, 10);
 
 /** Retarde la reponse d'un echec : rend le tatonnement automatique penible. */
 function pause(ms: number): Promise<void> {
@@ -23,6 +29,13 @@ export async function POST(requete: Request): Promise<Response> {
           "Aucun mot de passe administrateur n'est configuré. Ajoute ADMIN_MOT_DE_PASSE dans .env.local (12 caractères minimum), puis relance le serveur.",
       },
       { status: 503 },
+    );
+  }
+
+  if (tropDEssais(ipClient(requete))) {
+    return Response.json(
+      { ok: false, message: "Trop de tentatives. Réessaie dans un quart d'heure." },
+      { status: 429 },
     );
   }
 

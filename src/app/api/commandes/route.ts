@@ -1,4 +1,5 @@
 import { deposerCommande } from "@/lib/commandes";
+import { creerLimiteur, ipClient } from "@/lib/limiteur";
 
 /* ============================================================================
    Reception des commandes envoyees par les formulaires.
@@ -13,28 +14,8 @@ import { deposerCommande } from "@/lib/commandes";
    pour de bon, ce role revient au reverse proxy ou a Cloudflare.
    ========================================================================== */
 
-const FENETRE_MS = 60_000;
-const MAX_PAR_FENETRE = 12;
 const TAILLE_MAX = 4096;
-
-type Compteur = { debut: number; nombre: number };
-
-// globalThis : survit au rechargement a chaud du serveur de developpement.
-const registre: Map<string, Compteur> =
-  (globalThis as { __cldzDebitCommandes?: Map<string, Compteur> }).__cldzDebitCommandes ??
-  ((globalThis as { __cldzDebitCommandes?: Map<string, Compteur> }).__cldzDebitCommandes = new Map());
-
-function tropDeRequetes(ip: string): boolean {
-  const maintenant = Date.now();
-  const c = registre.get(ip);
-  if (!c || maintenant - c.debut > FENETRE_MS) {
-    registre.set(ip, { debut: maintenant, nombre: 1 });
-    if (registre.size > 5000) registre.clear(); // garde-fou memoire
-    return false;
-  }
-  c.nombre++;
-  return c.nombre > MAX_PAR_FENETRE;
-}
+const tropDeRequetes = creerLimiteur("commandes", 60_000, 12);
 
 const ENTETES_CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -55,12 +36,7 @@ export function OPTIONS(): Response {
 }
 
 export async function POST(requete: Request): Promise<Response> {
-  const ip =
-    requete.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    requete.headers.get("x-real-ip") ||
-    "inconnue";
-
-  if (tropDeRequetes(ip)) {
+  if (tropDeRequetes(ipClient(requete))) {
     return reponse({ ok: false, message: "Trop de tentatives. Réessayez dans une minute." }, 429);
   }
 

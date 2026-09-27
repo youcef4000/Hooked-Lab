@@ -3,9 +3,12 @@ import { analyseCreative, analysePackDZ } from "./analysis";
 import { buildSourcingLinks } from "./sourcing";
 import { calculerRentabilite, paramsParDefaut } from "./dz";
 import { config } from "./config";
-import { COUT_PROVISOIRE, ajusterCout, rembourser } from "./garde";
+import { ajusterCout, rembourser } from "./garde";
+import { noterDebit, solderDebit } from "./debits-en-cours";
+import { noterIncident } from "./incidents";
+import { ClaudeError } from "./claude";
 import { acquerirVideo } from "./acquisition";
-import { estImage as estFichierImage, purgerUploadsAnciens, supprimerFichier } from "./upload";
+import { purgerUploadsAnciens, supprimerFichier } from "./upload";
 import { buildMediaAssets, buildMediaAssetsImage, assertFfmpeg } from "./media";
 import { transcribe, EMPTY_TRANSCRIPT } from "./transcribe";
 import { purgerAnalysesOrphelines, saveReport } from "./store";
@@ -15,6 +18,7 @@ import {
   createJob,
   failJob,
   finishStep,
+  getJob,
   pruneJobs,
   skipStep,
   startStep,
@@ -32,6 +36,31 @@ function libelleSource(source: SourceEntree): string {
 }
 
 /**
+ * Ce que voit l'abonne quand son analyse echoue. Le motif technique (cle,
+ * credit Anthropic, binaire manquant) ne le concerne pas et l'inquieterait :
+ * il part dans le journal des incidents, visible de l'administration.
+ * Seuls les echecs de recuperation de la video lui parlent vraiment — il
+ * peut y remedier en deposant le fichier.
+ */
+function messageClient(err: unknown, etape: string | undefined, credits: number): string {
+  const rendu =
+    credits > 0 ? ` Tes ${credits} crédit${credits > 1 ? "s" : ""} t'ont été rendus.` : "";
+  if (etape === "acquisition") return `${(err as Error).message}${rendu}`;
+  if (err instanceof ClaudeError) {
+    return (
+      "Le service d'analyse est momentanément indisponible." +
+      rendu +
+      " Réessaie dans quelques minutes ; si ça persiste, écris-nous sur WhatsApp."
+    );
+  }
+  return (
+    "L'analyse n'a pas pu aboutir à cause d'une erreur technique de notre côté." +
+    rendu +
+    " Réessaie, ou écris-nous sur WhatsApp."
+  );
+}
+
+/**
  * Chaine complete : acquisition -> media -> transcription -> Claude -> rapport.
  * Ne jette jamais : les erreurs sont remontees via le job pour etre affichees
  * dans l'interface.
@@ -40,15 +69,13 @@ export async function runPipeline(
   id: string,
   source: SourceEntree,
   utilisateurId?: string,
+  montantInitial = 0,
 ): Promise<void> {
   const dir = ensureDir(analysisDir(id));
   const avertissements: string[] = [];
   // Credits reellement pris : mis a jour des que la duree est connue, et
   // rendus tels quels si l'analyse echoue.
-  let creditsPris =
-    source.type === "fichier" && estFichierImage(source.nomOriginal)
-      ? COUT_PROVISOIRE.image
-      : COUT_PROVISOIRE.video;
+  let creditsPris = montantInitial;
   let coutInput = 0;
   let coutOutput = 0;
   let coutUsd = 0;
@@ -61,8 +88,8 @@ export async function runPipeline(
       id,
       "acquisition",
       source.type === "url"
-        ? "Recuperation de la video et des metadonnees..."
-        : "Verification du fichier recu...",
+        ? "Récupération de la vidéo et de ses informations…"
+        : "Vérification du fichier reçu…",
     );
     const dl = await acquerirVideo(source, dir);
     finishStep(
@@ -81,8 +108,8 @@ export async function runPipeline(
       id,
       "media",
       estStatique
-        ? "Preparation de l'image pour l'analyse..."
-        : "Extraction de l'audio et detection des plans...",
+        ? "Préparation de l'image pour l'analyse…"
+        : "Extraction de l'audio et détection des plans…",
     );
     const media = estStatique
       ? await buildMediaAssetsImage(dl.videoPath, dir)
@@ -93,19 +120,21 @@ export async function runPipeline(
     // La duree reelle est connue : on corrige le forfait pris au lancement.
     creditsPris = ajusterCout(
       utilisateurId,
+      creditsPris,
       estStatique ? "image" : "video",
       dl.meta.dureeSecondes ?? 0,
     );
+    noterDebit(id, utilisateurId, creditsPris);
     finishStep(
       id,
       "media",
       estStatique
-        ? "Creative statique preparee"
-        : `${media.assets.frames.length} images cles, ${media.assets.coupes.length} changements de plan`,
+        ? "Créative statique préparée"
+        : `${media.assets.frames.length} images clés, ${media.assets.coupes.length} changements de plan`,
     );
 
     /* 3. Transcription ---------------------------------------------------- */
-    startStep(id, "transcription", "Recherche des sous-titres et transcription audio...");
+    startStep(id, "transcription", "Recherche des sous-titres et transcription de la voix…");
     // Une creative statique n'a pas de bande son : rien a transcrire.
     const t = estStatique
       ? { transcript: EMPTY_TRANSCRIPT, warnings: [] as string[] }
@@ -120,14 +149,14 @@ export async function runPipeline(
         id,
         "transcription",
         estStatique
-          ? "Creative statique : pas de bande son"
-          : "Pas de transcription audio : Claude lira les textes a l'ecran",
+          ? "Créative statique : pas de bande son"
+          : "Pas de voix détectée : l'analyse s'appuie sur les textes à l'écran",
       );
     } else {
       finishStep(
         id,
         "transcription",
-        `${t.transcript.source} — ${t.transcript.texte.length} caracteres`,
+        `Script récupéré — ${t.transcript.texte.length} caractères`,
       );
     }
 
@@ -135,7 +164,7 @@ export async function runPipeline(
     startStep(
       id,
       "analyse_creative",
-      `Envoi de ${media.assets.frames.length} images a ${config.anthropic.model}...`,
+      `Analyse de ${media.assets.frames.length} images clés par l'IA…`,
     );
     const creativeRes = await analyseCreative(
       id,
@@ -148,23 +177,23 @@ export async function runPipeline(
     coutInput += creativeRes.usage.input_tokens;
     coutOutput += creativeRes.usage.output_tokens;
     coutUsd += creativeRes.usage.usd_estime;
-    finishStep(id, "analyse_creative", `Produit identifie : ${creativeRes.creative.produit.nom_fr}`);
+    finishStep(id, "analyse_creative", `Produit identifié : ${creativeRes.creative.produit.nom_fr}`);
 
     /* 5. Pack Algerie ------------------------------------------------------ */
-    startStep(id, "sourcing_dz", "Redaction du dossier marche algerien...");
+    startStep(id, "sourcing_dz", "Rédaction du dossier pour le marché algérien…");
     const dzRes = await analysePackDZ(creativeRes.creative, creativeRes.sourcing, dl.meta, (detail) =>
       updateStepDetail(id, "sourcing_dz", detail),
     );
     coutInput += dzRes.usage.input_tokens;
     coutOutput += dzRes.usage.output_tokens;
     coutUsd += dzRes.usage.usd_estime;
-    updateStepDetail(id, "sourcing_dz", "Construction des liens Alibaba et 1688...");
+    updateStepDetail(id, "sourcing_dz", "Construction des liens Alibaba et 1688…");
 
     const liens = buildSourcingLinks(creativeRes.sourcing.requetes);
     finishStep(id, "sourcing_dz", `Score produit : ${dzRes.dz.score.global_sur_100}/100`);
 
     /* 6. Finalisation ------------------------------------------------------ */
-    startStep(id, "finalisation", "Calcul de rentabilite et ecriture du rapport...");
+    startStep(id, "finalisation", "Calcul de la rentabilité et écriture du rapport…");
 
     const params = paramsParDefaut(creativeRes.sourcing.estimation, config.fx.parallel);
     const rentabilite = calculerRentabilite(params);
@@ -182,6 +211,7 @@ export async function runPipeline(
       dz: dzRes.dz,
       rentabilite,
       avertissements,
+      proprietaireId: utilisateurId,
       cout_ia: {
         input_tokens: coutInput,
         output_tokens: coutOutput,
@@ -190,13 +220,26 @@ export async function runPipeline(
     };
 
     saveReport(report);
-    finishStep(id, "finalisation", `Cout de l'analyse : ${(coutUsd).toFixed(3)} $`);
+    solderDebit(id);
+    // Le WAV 16 kHz ne sert qu'a la transcription : le garder doublerait le
+    // poids de chaque analyse sur le disque, sans rien apporter au rapport.
+    if (media.wavPath) supprimerFichier(media.wavPath);
+    finishStep(
+      id,
+      "finalisation",
+      utilisateurId ? "Rapport prêt" : `Cout de l'analyse : ${coutUsd.toFixed(3)} $`,
+    );
     completeJob(id);
   } catch (err) {
-    failJob(id, (err as Error).message || "Erreur inconnue pendant l'analyse");
+    const technique = (err as Error).message || "Erreur inconnue pendant l'analyse";
+    const etape = getJob(id)?.steps.find((s) => s.status === "en_cours")?.id;
+    noterIncident({ analyseId: id, utilisateurId, etape, message: technique });
+
     // Une analyse qui echoue ne se facture pas : le client n'a rien recu, et
-    // la panne est de notre cote. On rend le forfait pris au lancement.
+    // la panne est de notre cote. On rend ce qui a ete reellement preleve.
     rembourser(utilisateurId, creditsPris);
+    solderDebit(id);
+    failJob(id, utilisateurId ? messageClient(err, etape, creditsPris) : technique);
   } finally {
     // Aucun fichier depose ne survit au traitement, qu'il ait reussi ou echoue :
     // ni celui en transit, ni la copie laissee par une analyse interrompue.
@@ -216,7 +259,8 @@ export async function runPipeline(
    analyses attendent leur tour, et le client voit sa place dans la file.
 
    Limite connue, traitee en phase 2 : la file vit en memoire. Un redemarrage
-   du serveur fait perdre les analyses en attente comme celles en cours.
+   du serveur fait perdre les analyses en attente comme celles en cours —
+   leurs credits, eux, sont rendus au demarrage (voir debits-en-cours.ts).
    ========================================================================== */
 
 const MAX_SIMULTANEES = Math.max(1, Math.floor(Number(process.env.MAX_ANALYSES_SIMULTANEES) || 2));
@@ -252,12 +296,17 @@ function demarrerSuivantes(): void {
   annoncerPositions();
 }
 
-/** Cree le job puis le place dans la file ; il demarre des qu'un creneau est libre. */
-export function launchAnalysis(source: SourceEntree, utilisateurId?: string): string {
+/**
+ * Cree le job puis le place dans la file ; il demarre des qu'un creneau est libre.
+ * `montant` est ce que l'abonne a deja paye : il est note sur disque tant que
+ * l'analyse tourne, pour etre rendu si le serveur redemarre entre-temps.
+ */
+export function launchAnalysis(source: SourceEntree, utilisateurId?: string, montant = 0): string {
   const id = newAnalysisId();
-  createJob(id, libelleSource(source), source.type === "url" ? "url" : "fichier");
+  createJob(id, libelleSource(source), source.type === "url" ? "url" : "fichier", utilisateurId);
+  noterDebit(id, utilisateurId, montant);
   // Volontairement non attendu : la progression est suivie via le flux SSE.
-  file.attente.push({ id, lancer: () => runPipeline(id, source, utilisateurId) });
+  file.attente.push({ id, lancer: () => runPipeline(id, source, utilisateurId, montant) });
   demarrerSuivantes();
   return id;
 }

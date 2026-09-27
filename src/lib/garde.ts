@@ -1,5 +1,5 @@
 import { estConnecte } from "./admin-auth";
-import { crediter, debiter, type Utilisateur } from "./comptes";
+import { abonnementActif, crediter, debiter, type Utilisateur } from "./comptes";
 import { utilisateurCourant } from "./session";
 import { COUT_CREDITS } from "./tarifs";
 
@@ -44,6 +44,8 @@ export interface Acces {
   /** Vide quand c'est l'administrateur : rien ne sera debite ni ajuste. */
   utilisateurId?: string;
   utilisateur?: Utilisateur;
+  /** Credits effectivement preleves a l'entree (0 pour l'administrateur). */
+  montant: number;
 }
 
 /**
@@ -52,25 +54,51 @@ export interface Acces {
  */
 export async function autoriserAnalyse(type: TypeAnalyse): Promise<Acces> {
   // Le proprietaire passe toujours : c'est sa cle, c'est son produit.
-  if (await estConnecte()) return { autorise: true };
+  if (await estConnecte()) return { autorise: true, montant: 0 };
 
   const u = await utilisateurCourant();
   if (!u) {
     return {
       autorise: false,
       statut: 401,
+      montant: 0,
       message: "Connecte-toi pour lancer une analyse.",
     };
   }
 
-  const resultat = debiter(u.id, COUT_PROVISOIRE[type]);
+  const montant = COUT_PROVISOIRE[type];
+  const resultat = debiter(u.id, montant);
   if (!resultat.ok) {
     // debiter() distingue deja abonnement expire, solde insuffisant et compte
     // suspendu : on transmet son message tel quel.
-    return { autorise: false, statut: 402, message: resultat.message };
+    return { autorise: false, statut: 402, montant: 0, message: resultat.message };
   }
 
-  return { autorise: true, utilisateurId: u.id, utilisateur: resultat.utilisateur };
+  return { autorise: true, utilisateurId: u.id, utilisateur: resultat.utilisateur, montant };
+}
+
+/**
+ * Meme verdict qu'autoriserAnalyse, sans rien debiter. Sert a refuser un
+ * depot de fichier AVANT de recevoir 300 Mo : sans ce controle, n'importe
+ * quel visiteur pourrait remplir le disque du serveur.
+ */
+export async function peutLancerAnalyse(): Promise<{ ok: boolean; statut?: number; message?: string }> {
+  if (await estConnecte()) return { ok: true };
+  const u = await utilisateurCourant();
+  if (!u) return { ok: false, statut: 401, message: "Connecte-toi pour lancer une analyse." };
+  if (!abonnementActif(u)) {
+    return {
+      ok: false,
+      statut: 402,
+      message: u.expireLe
+        ? "Ton abonnement a expiré. Saisis un nouveau code pour continuer."
+        : "Ton compte n'est pas encore activé. Saisis le code reçu après ton paiement.",
+    };
+  }
+  if (u.credits < COUT_CREDITS.image) {
+    return { ok: false, statut: 402, message: "Crédits insuffisants. Recharge ton compte pour continuer." };
+  }
+  return { ok: true };
 }
 
 /**
@@ -82,11 +110,14 @@ export async function autoriserAnalyse(type: TypeAnalyse): Promise<Acces> {
  */
 export function ajusterCout(
   utilisateurId: string | undefined,
+  dejaPris: number,
   type: TypeAnalyse,
   dureeSecondes: number,
 ): number {
-  const provisoire = COUT_PROVISOIRE[type];
-  if (!utilisateurId) return provisoire;
+  // On repart de ce qui a reellement ete preleve, pas du forfait du type :
+  // un lien paye au tarif video peut s'averer mener a une image.
+  const provisoire = dejaPris;
+  if (!utilisateurId || provisoire <= 0) return provisoire;
 
   const reel = coutReel(type, dureeSecondes);
   if (reel === provisoire) return provisoire;

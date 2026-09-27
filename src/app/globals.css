@@ -624,3 +624,77 @@ h2 {
   background-clip: text;
   color: transparent;
 }
+
+/* ==============================================================
+   Vitrine — finitions de la page d'accueil.
+   ============================================================== */
+
+/* Barre de progression de lecture : pilotee au scroll par GSAP, en
+   scaleX uniquement (aucune propriete de mise en page). */
+.progression-lecture {
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+/* La scene epinglee reste invisible tant que GSAP n'a pas pose ses etats
+   de depart : sinon les quatre titres s'empilent une fraction de seconde. */
+.sec-dissect:not(.dx-pret) :is(.dx-caption, .dx-frame, .dx-script, .dx-angles, .dx-sourcing, .dx-final) {
+  opacity: 0;
+}
+
+/* Bandeau de resultats : les cartes se fondent aux bords au lieu d'etre
+   tranchees net par le cadre de l'ecran. */
+.fondu-bords {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+}
+
+/* Etapes de demarrage : la ligne d'or se dessine au scroll (scale seul),
+   et chaque etape s'allume quand la ligne l'atteint. */
+.ligne-demarrage {
+  transform-origin: 0 0;
+}
+.etape-noeud {
+  transition:
+    background-color var(--t-moyen) var(--courbe),
+    border-color var(--t-moyen) var(--courbe),
+    color var(--t-moyen) var(--courbe),
+    box-shadow var(--t-moyen) var(--courbe);
+}
+.etape[data-actif="true"] .etape-noeud {
+  background-color: var(--color-brand-500);
+  border-color: var(--color-brand-400);
+  color: var(--color-ink-950);
+  box-shadow: 0 0 0 6px rgb(201 162 39 / 0.14), 0 10px 30px -8px rgb(201 162 39 / 0.55);
+}
+
+/* Barres des mini-graphiques : elles poussent depuis le bas. */
+.barre-graph {
+  transform-origin: 50% 100%;
+}
+
+/* Barre d'action mobile : glisse depuis le bas une fois le hero depasse. */
+.barre-mobile {
+  transform: translate3d(0, 120%, 0);
+  transition: transform var(--t-moyen) var(--courbe);
+}
+.barre-mobile[data-visible="true"] {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sans mouvement, pas de scene epinglee : la version deroulee, lisible
+     d'un seul regard, la remplace sur tous les ecrans. */
+  .sec-dissect {
+    display: none !important;
+  }
+  .mb-dissect {
+    display: block !important;
+  }
+  .ligne-demarrage {
+    transform: none !important;
+  }
+  .barre-mobile {
+    transition: none;
+  }
+}

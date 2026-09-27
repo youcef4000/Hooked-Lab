@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Inter, Figtree } from "next/font/google";
 import { Suspense } from "react";
 import { Pixels } from "@/components/Pixels";
+import { urlSiteDepuis } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -21,7 +23,22 @@ const DESCRIPTION =
   "sourcing Alibaba et 1688, rentabilité en paiement à la livraison. Pensé pour le " +
   "e-commerce algérien.";
 
-export const metadata: Metadata = {
+/**
+ * Metadonnees calculees a chaque requete : l'adresse de base vient de la
+ * requete elle-meme. Elle est donc juste en .onrender.com comme sur le nom
+ * de domaine, sans rien configurer — alors qu'une valeur figee a la
+ * construction pointerait vers localhost.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    // Sans adresse de base, les apercus de liens (WhatsApp, Facebook) pointent
+    // vers des images relatives que les plateformes ne savent pas charger.
+    metadataBase: new URL(urlSiteDepuis(await headers())),
+    ...METADONNEES,
+  };
+}
+
+const METADONNEES: Metadata = {
   title: {
     default: "Hooked Lab — Décortique les créatives qui vendent",
     template: "%s — Hooked Lab",

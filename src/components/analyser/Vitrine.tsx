@@ -254,14 +254,9 @@ export function Vitrine({ recentes }: { recentes: ReportSummary[] }) {
           <div className="mx-auto max-w-6xl">
             <div className="rev flex flex-wrap items-end justify-between gap-3">
               <h2 className="text-2xl font-medium tracking-[-0.02em] text-mist-100">
-                Analyses récentes
+                Exemples de dossiers
               </h2>
-              <Link
-                href="/historique"
-                className="text-sm text-brand-300 underline underline-offset-4 transition hover:text-brand-400"
-              >
-                Tout l&apos;historique
-              </Link>
+              <p className="text-sm text-mist-400">Ouvre-en un : c&apos;est exactement ce que tu recevras.</p>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

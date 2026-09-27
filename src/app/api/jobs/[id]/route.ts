@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { getJob } from "@/lib/jobs";
 import { getReport } from "@/lib/store";
+import { lecteurCourant, peutVoir } from "@/lib/acces-analyses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!peutVoir(id, await lecteurCourant())) {
+    return NextResponse.json({ error: "Analyse introuvable." }, { status: 404 });
+  }
   const job = getJob(id);
 
   if (job) return NextResponse.json(job);

@@ -50,6 +50,8 @@ export interface Job {
   echecTelechargement?: boolean;
   /** Renseigne des que le rapport est ecrit sur disque. */
   reportReady?: boolean;
+  /** Compte abonne qui a lance l'analyse ; absent quand c'est le proprietaire. */
+  proprietaireId?: string;
 }
 
 /* --------------------------------------------------------------- Ingestion */
@@ -425,6 +427,13 @@ export interface Report {
   /** Diagnostics du pipeline : etapes degradees, avertissements. */
   avertissements: string[];
   cout_ia?: { input_tokens: number; output_tokens: number; usd_estime: number };
+  /**
+   * Compte abonne qui a commande l'analyse. Absent quand c'est le
+   * proprietaire : le rapport n'est alors visible que de l'administration.
+   */
+  proprietaireId?: string;
+  /** Choisi par l'administration : l'analyse sert d'exemple aux visiteurs. */
+  demo?: boolean;
 }
 
 /** Une ligne de la page de diagnostic de l'installation. */
@@ -444,4 +453,6 @@ export interface ReportSummary {
   produit: string;
   miniature?: string;
   score: number;
+  proprietaireId?: string;
+  demo?: boolean;
 }

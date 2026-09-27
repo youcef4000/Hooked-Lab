@@ -14,10 +14,32 @@ export function detectPlatform(url: string): Platform {
   return "autre";
 }
 
+/**
+ * Plateformes acceptees. yt-dlp sait lire n'importe quelle adresse : sans
+ * cette liste, un visiteur pourrait faire telecharger au serveur une adresse
+ * interne de l'hebergeur, ou un fichier de plusieurs Go.
+ */
+const DOMAINES_ACCEPTES = [
+  "tiktok.com",
+  "instagram.com",
+  "facebook.com",
+  "fb.watch",
+  "fb.com",
+  "youtube.com",
+  "youtu.be",
+  "snapchat.com",
+  "pinterest.com",
+  "pin.it",
+  "x.com",
+  "twitter.com",
+];
+
 export function isSupportedUrl(url: string): boolean {
   try {
     const parsed = new URL(url.trim());
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const hote = parsed.hostname.toLowerCase();
+    return DOMAINES_ACCEPTES.some((d) => hote === d || hote.endsWith("." + d));
   } catch {
     return false;
   }
@@ -38,38 +60,58 @@ function formatDate(raw?: string): string | undefined {
   return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
 }
 
-/** Traduit les erreurs yt-dlp les plus frequentes en message actionnable. */
+const NOMS_PLATEFORME: Record<Platform, string> = {
+  tiktok: "TikTok",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  youtube: "YouTube",
+  fichier: "le fichier",
+  image: "l'image",
+  autre: "la plateforme",
+};
+
+/**
+ * Traduit les erreurs yt-dlp les plus frequentes en message actionnable.
+ * Ce texte est lu par le client : francais correct, et toujours une issue.
+ */
 function humanizeYtDlpError(stderr: string, platform: Platform): string {
   const s = stderr.toLowerCase();
+  const nom = NOMS_PLATEFORME[platform];
 
-  const conseilCookies =
-    "Ajoute YTDLP_COOKIES_FROM_BROWSER=chrome (ou firefox/edge) dans .env.local, " +
-    "connecte-toi a la plateforme dans ce navigateur, ferme-le completement, puis relance l'analyse.";
+  // En local, le proprietaire peut preter la session de son navigateur a
+  // yt-dlp. En ligne, le client n'a qu'une issue, et elle marche toujours :
+  // deposer le fichier lui-meme.
+  const issue =
+    process.env.NODE_ENV === "production"
+      ? "Enregistre la vidéo sur ton téléphone, puis dépose le fichier ici : l'analyse sera identique."
+      : "Ajoute YTDLP_COOKIES_FROM_BROWSER=chrome (ou firefox/edge) dans .env.local, " +
+        "connecte-toi a la plateforme dans ce navigateur, ferme-le completement, puis relance l'analyse.";
 
   if (
     s.includes("login required") ||
     s.includes("requested content is not available") ||
     s.includes("rate-limit")
   ) {
-    return `${platform} demande une session connectee pour cette video. ${conseilCookies}`;
+    return `${nom} exige d'être connecté pour récupérer cette vidéo. ${issue}`;
   }
   // Reponse inattendue = protection anti-bot de la plateforme, pas un lien casse.
   if (s.includes("unexpected response") || s.includes("unable to extract") || s.includes("captcha")) {
-    return (
-      `${platform} a refuse la requete (protection anti-robot) ou la video n'existe pas. ` +
-      `Verifie d'abord que le lien s'ouvre en navigation privee. S'il fonctionne : ${conseilCookies}`
-    );
+    return `${nom} a bloqué la récupération de cette vidéo, ou elle n'existe plus. ${issue}`;
   }
   if (s.includes("private") || s.includes("this video is unavailable")) {
-    return "Video privee, supprimee ou reservee a certains pays. Verifie que le lien s'ouvre en navigation privee.";
+    return `Cette vidéo est privée, supprimée ou réservée à certains pays. ${issue}`;
   }
   if (s.includes("unsupported url")) {
-    return "Lien non reconnu. Colle l'URL complete du post (pas un lien de profil ou de recherche).";
+    return "Lien non reconnu. Colle le lien complet de la vidéo, pas celui d'un profil ou d'une recherche.";
   }
   if (s.includes("http error 404")) {
-    return "Video introuvable (404). Le post a peut-etre ete supprime.";
+    return "Vidéo introuvable : la publication a probablement été supprimée.";
   }
   const tail = stderr.trim().split(/\r?\n/).filter(Boolean).slice(-3).join(" | ");
+  if (process.env.NODE_ENV === "production") {
+    console.error(`[yt-dlp] ${platform} : ${tail}`);
+    return `La vidéo n'a pas pu être récupérée depuis ${nom}. ${issue}`;
+  }
   return `Telechargement impossible. Detail yt-dlp : ${tail || "erreur inconnue"}`;
 }
 

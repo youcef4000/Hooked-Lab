@@ -59,7 +59,14 @@ function scoreTone(score: number): "vert" | "ambre" | "rouge" {
   return score >= 65 ? "vert" : score >= 45 ? "ambre" : "rouge";
 }
 
-export function ReportView({ report }: { report: Report }) {
+export function ReportView({
+  report,
+  proprietaire = false,
+}: {
+  report: Report;
+  /** Le cout IA et les avertissements techniques ne regardent que l'administration. */
+  proprietaire?: boolean;
+}) {
   const [onglet, setOnglet] = useState<OngletId>("apercu");
   const { creative, source, dz } = report;
 
@@ -155,7 +162,7 @@ export function ReportView({ report }: { report: Report }) {
         </div>
       </div>
 
-      {report.avertissements.length > 0 && (
+      {proprietaire && report.avertissements.length > 0 && (
         <div className="mb-6 rounded-xl border border-amber-glow/25 bg-amber-glow/[0.07] px-4 py-3">
           <p className="text-xs font-medium uppercase tracking-wide text-amber-glow">
             Limites de cette analyse
@@ -197,7 +204,7 @@ export function ReportView({ report }: { report: Report }) {
         {onglet === "lancement" && <LaunchTab report={report} />}
       </div>
 
-      {report.cout_ia && (
+      {proprietaire && report.cout_ia && (
         <p className="mt-10 text-center text-[11px] text-mist-400">
           Analyse produite le{" "}
           {new Date(report.createdAt).toLocaleString("fr-FR", {

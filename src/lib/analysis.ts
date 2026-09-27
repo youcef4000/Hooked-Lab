@@ -258,7 +258,7 @@ le decoupage en sequences et l'analyse du hook.`,
   });
 
   const fiche = ficheProduit(visuel.data, meta);
-  surAvancement?.(`Produit identifie : ${visuel.data.produit.nom_fr}. Angles et sourcing...`);
+  surAvancement?.(`Produit identifié : ${visuel.data.produit.nom_fr}. Angles et sourcing…`);
 
   // B et C dependent tous deux de A, mais pas l'un de l'autre.
   const [strategie, sourcing] = await Promise.all([

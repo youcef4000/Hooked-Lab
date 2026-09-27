@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { safeMediaPath } from "@/lib/paths";
+import { lecteurCourant, peutVoir } from "@/lib/acces-analyses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string; file: string[] }> },
 ) {
   const { id, file } = await params;
+  if (!peutVoir(id, await lecteurCourant())) {
+    return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
+  }
 
   // safeMediaPath refuse tout chemin qui sortirait du dossier de l'analyse.
   const target = safeMediaPath(id, file.join("/"));

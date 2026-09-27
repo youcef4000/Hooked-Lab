@@ -138,7 +138,7 @@ export function JobProgress({ id }: { id: string }) {
             </li>
           ))}
           {!job && (
-            <li className="animate-pulse-soft text-sm text-mist-400">Connexion au traitement...</li>
+            <li className="animate-pulse-soft text-sm text-mist-400">Connexion au traitement…</li>
           )}
         </ol>
       </div>
@@ -194,7 +194,7 @@ export function JobProgress({ id }: { id: string }) {
 
       {deconnecte && job?.status !== "erreur" && (
         <div className="mt-4 rounded-lg border border-amber-glow/30 bg-amber-glow/10 px-4 py-3 text-sm text-amber-glow">
-          Connexion au suivi perdue. L&apos;analyse continue peut-etre en arriere-plan :{" "}
+          Connexion au suivi perdue. L&apos;analyse continue peut-être en arrière-plan :{" "}
           <button onClick={() => router.refresh()} className="underline">
             recharger la page
           </button>

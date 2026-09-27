@@ -50,7 +50,13 @@ function Champ({
 const styleSaisie =
   "w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-100 outline-none transition focus:border-brand-500";
 
-export function GenerateurFormulaire() {
+/**
+ * `proprietaire` : seul le proprietaire du site peut recevoir les commandes
+ * dans l'admin Hooked Lab. Un abonne qui choisirait cette destination
+ * enverrait les clients de SA boutique dans l'admin de quelqu'un d'autre :
+ * pour lui, ce sont Google Sheets ou un webhook.
+ */
+export function GenerateurFormulaire({ proprietaire = false }: { proprietaire?: boolean }) {
   const [o, setO] = useState<OptionsFormulaire>(OPTIONS_DEFAUT);
   const maj = <K extends keyof OptionsFormulaire>(cle: K, v: OptionsFormulaire[K]) =>
     setO((x) => ({ ...x, [cle]: v }));
@@ -314,7 +320,7 @@ export function GenerateurFormulaire() {
             Pratique pour tester la page, inutilisable en production.
           </p>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${proprietaire ? "grid-cols-2" : "grid-cols-3"}`}>
               {(
                 [
                   ["interne", "Hooked Lab"],
@@ -322,7 +328,9 @@ export function GenerateurFormulaire() {
                   ["webhook", "Webhook"],
                   ["aucune", "Aucune"],
                 ] as const
-              ).map(([v, label]) => (
+              )
+                .filter(([v]) => proprietaire || v !== "interne")
+                .map(([v, label]) => (
                 <button
                   key={v}
                   onClick={() => choisirDestination(v)}

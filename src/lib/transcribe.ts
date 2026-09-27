@@ -118,9 +118,28 @@ function readWavMono16(filePath: string): { samples: Float32Array; sampleRate: n
   return { samples, sampleRate };
 }
 
+/**
+ * Surface minimale de @huggingface/transformers utilisee ici. Le paquet est
+ * optionnel et absent en production (Render installe avec --omit=optional) :
+ * ni la verification des types ni le bundler ne doivent en dependre, sinon
+ * la construction echoue sur le serveur alors qu'elle passe sur le PC.
+ */
+interface ModuleTransformers {
+  env: { cacheDir: string; allowLocalModels: boolean };
+  pipeline: (
+    tache: string,
+    modele: string,
+    options: { dtype: string },
+  ) => Promise<(audio: Float32Array, options: Record<string, unknown>) => Promise<unknown>>;
+}
+
 async function whisperLocal(wavPath: string): Promise<Transcript> {
-  // Import dynamique : le paquet est optionnel, l'app doit demarrer sans lui.
-  const mod = await import("@huggingface/transformers").catch(() => null);
+  // Import dynamique par une variable, ignore du bundler : le paquet est
+  // optionnel, l'application doit se construire et demarrer sans lui.
+  const nomPaquet = "@huggingface/transformers";
+  const mod = (await import(/* webpackIgnore: true */ nomPaquet).catch(
+    () => null,
+  )) as ModuleTransformers | null;
   if (!mod) {
     throw new Error(
       "Whisper local indisponible (@huggingface/transformers non installe). " +
@@ -128,7 +147,7 @@ async function whisperLocal(wavPath: string): Promise<Transcript> {
     );
   }
 
-  const { pipeline, env } = mod as typeof import("@huggingface/transformers");
+  const { pipeline, env } = mod;
   // Les poids sont mis en cache dans data/models pour ne les telecharger qu'une fois.
   env.cacheDir = path.join(DATA_DIR, "models");
   env.allowLocalModels = true;

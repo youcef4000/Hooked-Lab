@@ -5,6 +5,7 @@ import { ffmpegPath, run, ytDlpPath } from "@/lib/bin";
 import { config } from "@/lib/config";
 import { DATA_DIR, ensureDir } from "@/lib/paths";
 import type { Verification } from "@/types/analysis";
+import { estConnecte } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,10 @@ async function versionBinaire(
 }
 
 export async function GET() {
+  // Reserve au proprietaire : chemins, versions et etat de la cle ne
+  // regardent personne d'autre.
+  if (!(await estConnecte())) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+
   const verifications: Verification[] = [];
 
   verifications.push({

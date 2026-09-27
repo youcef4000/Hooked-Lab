@@ -20,7 +20,6 @@ const PRINCIPAUX = [
 const SECONDAIRES = [
   { href: "/tarifs", label: "Tarifs" },
   { href: "/formulaire", label: "Formulaire" },
-  { href: "/diagnostic", label: "Diagnostic" },
 ];
 
 function estActif(chemin: string, href: string): boolean {
@@ -38,9 +37,9 @@ export function NavOutil({
   abonnementActif?: boolean;
 }) {
   const chemin = usePathname();
-  // Admin ne rejoint la liste que si le proprietaire est connecte.
+  // Diagnostic et Admin ne rejoignent la liste que si le proprietaire est connecte.
   const secondaires = proprietaire
-    ? [...SECONDAIRES, { href: "/admin", label: "Admin" }]
+    ? [...SECONDAIRES, { href: "/diagnostic", label: "Diagnostic" }, { href: "/admin", label: "Admin" }]
     : SECONDAIRES;
 
   const connecte = credits !== null;

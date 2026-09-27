@@ -72,10 +72,9 @@ export const PALIERS: Palier[] = [
     populaire: true,
     avantages: [
       "Environ 60 analyses vidéo par mois",
-      "Tout l'Essentiel, sans limite de durée vidéo",
-      "Analyses lancées en parallèle",
-      "Recharges à tarif réduit",
-      "Support prioritaire",
+      "Tout l'Essentiel",
+      "Plusieurs analyses lancées à la suite",
+      "Support prioritaire sur WhatsApp",
     ],
   },
   {
@@ -84,11 +83,10 @@ export const PALIERS: Palier[] = [
     base: 13900,
     cible: "Pour les media buyers et agences",
     avantages: [
-      "Environ 165 analyses vidéo par mois",
+      "Environ 166 analyses vidéo par mois",
       "Tout le Pro",
-      "Jusqu'à 5 analyses simultanées",
-      "Crédits partagés entre collaborateurs",
-      "Accompagnement au démarrage",
+      "Un compte utilisable par toute ton équipe",
+      "Accompagnement au démarrage par téléphone",
     ],
   },
 ];
