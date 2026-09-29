@@ -3,19 +3,29 @@
 import { useState } from "react";
 import { Badge, Card, Repli, Section, formatSecondes } from "../ui";
 import { CopyButton } from "../CopyButton";
+import { useRapport } from "./contexte";
 import type { Report, SequenceCle } from "@/types/analysis";
 
-const ROLES: Record<SequenceCle["role"], { label: string; tone: "vert" | "ambre" | "rouge" | "bleu" | "neutre" }> = {
-  hook: { label: "Hook", tone: "vert" },
-  probleme: { label: "Problème", tone: "rouge" },
-  agitation: { label: "Agitation", tone: "rouge" },
-  solution: { label: "Solution", tone: "vert" },
-  demonstration: { label: "Démonstration", tone: "bleu" },
-  preuve_sociale: { label: "Preuve sociale", tone: "bleu" },
-  benefice: { label: "Benefice", tone: "vert" },
-  offre: { label: "Offre", tone: "ambre" },
-  cta: { label: "Appel a l'action", tone: "ambre" },
-  autre: { label: "Autre", tone: "neutre" },
+type Ton = "vert" | "ambre" | "rouge" | "bleu" | "neutre";
+
+const ROLES: Record<SequenceCle["role"], { label: { fr: string; en: string }; tone: Ton }> = {
+  hook: { label: { fr: "Hook", en: "Hook" }, tone: "vert" },
+  probleme: { label: { fr: "Problème", en: "Problem" }, tone: "rouge" },
+  agitation: { label: { fr: "Agitation", en: "Agitation" }, tone: "rouge" },
+  solution: { label: { fr: "Solution", en: "Solution" }, tone: "vert" },
+  demonstration: { label: { fr: "Démonstration", en: "Demo" }, tone: "bleu" },
+  preuve_sociale: { label: { fr: "Preuve sociale", en: "Social proof" }, tone: "bleu" },
+  benefice: { label: { fr: "Bénéfice", en: "Benefit" }, tone: "vert" },
+  offre: { label: { fr: "Offre", en: "Offer" }, tone: "ambre" },
+  cta: { label: { fr: "Appel à l'action", en: "Call to action" }, tone: "ambre" },
+  autre: { label: { fr: "Autre", en: "Other" }, tone: "neutre" },
+};
+
+const TYPES_SEGMENT: Record<string, { fr: string; en: string }> = {
+  voix_off: { fr: "voix off", en: "voice-over" },
+  texte_ecran: { fr: "texte écran", en: "on-screen text" },
+  dialogue: { fr: "dialogue", en: "dialogue" },
+  son_ambiant: { fr: "son ambiant", en: "ambient sound" },
 };
 
 /** Retourne la keyframe la plus proche d'un instant donne. */
@@ -30,7 +40,10 @@ function estArabe(texte: string): boolean {
 
 export function ScriptTab({ report }: { report: Report }) {
   const { creative, media, transcript } = report;
+  const { fr, langue } = useRapport();
   const [zoom, setZoom] = useState<string | null>(null);
+  const sourceTexte =
+    transcript.source === "aucune" ? (fr ? "lecture des textes à l'écran" : "on-screen text reading") : transcript.source;
 
   const script = creative.script;
   const rtl = estArabe(script.texte_complet);
@@ -40,16 +53,18 @@ export function ScriptTab({ report }: { report: Report }) {
       {/* Le script, en second plan : ce qui aide a decider, ce sont les
           sequences. Le texte brut reste accessible d'un clic. */}
       <Section
-        titre="Le script"
-        soustitre={`Langue : ${script.langue_detectee}. Source : ${
-          transcript.source === "aucune" ? "lecture des textes a l'ecran" : transcript.source
-        }.`}
-        action={<CopyButton texte={script.texte_complet} label="Copier le script" />}
+        titre={fr ? "Le script" : "The script"}
+        soustitre={
+          fr
+            ? `Langue : ${script.langue_detectee}. Source : ${sourceTexte}.`
+            : `Language: ${script.langue_detectee}. Source: ${sourceTexte}.`
+        }
+        action={<CopyButton texte={script.texte_complet} label={fr ? "Copier le script" : "Copy the script"} />}
       >
         <div className="space-y-2">
           <Repli
-            titre="Script complet"
-            compteur={`${script.texte_complet.length} car.`}
+            titre={fr ? "Script complet" : "Full script"}
+            compteur={`${script.texte_complet.length} ${fr ? "car." : "chars"}`}
             apercu={script.texte_complet.slice(0, 90)}
           >
             <p
@@ -62,7 +77,7 @@ export function ScriptTab({ report }: { report: Report }) {
               <div className="mt-4 border-t border-ink-800 pt-4">
                 <div className="mb-2 flex items-center justify-between">
                   <h4 className="text-xs font-medium uppercase tracking-wide text-mist-400">
-                    Traduction française
+                    {fr ? "Traduction française" : "Translation"}
                   </h4>
                   <CopyButton texte={script.traduction_fr} />
                 </div>
@@ -74,7 +89,7 @@ export function ScriptTab({ report }: { report: Report }) {
           </Repli>
 
           {script.segments.length > 0 && (
-            <Repli titre="Script horodate, ligne par ligne" compteur={script.segments.length}>
+            <Repli titre={fr ? "Script horodaté, ligne par ligne" : "Timestamped script, line by line"} compteur={script.segments.length}>
               <div className="divide-y divide-ink-800">
                 {script.segments.map((s, i) => (
                   <div key={i} className="flex gap-4 py-2.5">
@@ -90,7 +105,7 @@ export function ScriptTab({ report }: { report: Report }) {
                       </p>
                     </div>
                     <Badge tone={s.type === "voix_off" ? "bleu" : "neutre"}>
-                      {s.type.replace("_", " ")}
+                      {TYPES_SEGMENT[s.type]?.[langue] ?? s.type.replace("_", " ")}
                     </Badge>
                   </div>
                 ))}
@@ -102,8 +117,12 @@ export function ScriptTab({ report }: { report: Report }) {
 
       {/* Sequences cles : le vrai contenu utile, en pleine page ---------- */}
       <Section
-        titre="Séquences clés"
-        soustitre="La structure de vente, plan par plan. C'est ce qu'il faut reproduire."
+        titre={fr ? "Séquences clés" : "Key sequences"}
+        soustitre={
+          fr
+            ? "La structure de vente, plan par plan. C'est ce qu'il faut reproduire."
+            : "The sales structure, shot by shot. This is what to replicate."
+        }
       >
         <div className="space-y-3">
           {creative.sequences.map((seq, i) => {
@@ -120,7 +139,7 @@ export function ScriptTab({ report }: { report: Report }) {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={`/api/media/${report.id}/${frame.file}`}
-                        alt={`Séquence ${i + 1}`}
+                        alt={`${fr ? "Séquence" : "Sequence"} ${i + 1}`}
                         className="h-full w-full object-cover transition group-hover:scale-105"
                       />
                       <span className="absolute bottom-1 left-1 rounded bg-ink-950/80 px-1.5 py-0.5 text-[10px] tabular-nums text-mist-200">
@@ -130,7 +149,7 @@ export function ScriptTab({ report }: { report: Report }) {
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone={role.tone}>{role.label}</Badge>
+                      <Badge tone={role.tone}>{role.label[langue]}</Badge>
                       <span className="text-xs tabular-nums text-mist-400">
                         {formatSecondes(seq.start)} → {formatSecondes(seq.end)}
                       </span>
@@ -156,7 +175,7 @@ export function ScriptTab({ report }: { report: Report }) {
                     )}
 
                     <p className="mt-2.5 text-xs leading-relaxed text-brand-300">
-                      <span className="font-medium">Pourquoi ça marche :</span>{" "}
+                      <span className="font-medium">{fr ? "Pourquoi ça marche :" : "Why it works:"}</span>{" "}
                       {seq.pourquoi_ca_marche}
                     </p>
                   </div>
@@ -169,8 +188,12 @@ export function ScriptTab({ report }: { report: Report }) {
 
       {/* Keyframes ------------------------------------------------------- */}
       <Section
-        titre="Images clés extraites"
-        soustitre="Télécharge une image pour lancer une recherche par photo chez les fournisseurs chinois."
+        titre={fr ? "Images clés extraites" : "Extracted key frames"}
+        soustitre={
+          fr
+            ? "Télécharge une image pour lancer une recherche par photo chez les fournisseurs chinois."
+            : "Download a frame to run an image search on Chinese supplier sites."
+        }
       >
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-10">
           {media.frames.map((f, i) => (
@@ -182,7 +205,7 @@ export function ScriptTab({ report }: { report: Report }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`/api/media/${report.id}/${f.file}`}
-                alt={`Image a ${f.t} s`}
+                alt={`${fr ? "Image à" : "Frame at"} ${f.t} s`}
                 className="h-full w-full object-cover"
                 loading="lazy"
               />
@@ -196,13 +219,15 @@ export function ScriptTab({ report }: { report: Report }) {
           ))}
         </div>
         <p className="mt-2 text-xs text-mist-400">
-          Le point vert signale un changement de plan détecté.
+          {fr ? "Le point vert signale un changement de plan détecté." : "The green dot marks a detected shot change."}
         </p>
       </Section>
 
       {/* Points de retention rappel ------------------------------------- */}
       {transcript.note && (
-        <p className="text-xs text-mist-400">Note sur la transcription : {transcript.note}</p>
+        <p className="text-xs text-mist-400">
+          {fr ? "Note sur la transcription :" : "Transcription note:"} {transcript.note}
+        </p>
       )}
 
       {/* Visionneuse ----------------------------------------------------- */}
@@ -220,13 +245,13 @@ export function ScriptTab({ report }: { report: Report }) {
                 download
                 className="cta-aurora rounded-full px-4 py-2 text-sm font-semibold"
               >
-                Télécharger l&apos;image
+                {fr ? "Télécharger l'image" : "Download image"}
               </a>
               <button
                 onClick={() => setZoom(null)}
                 className="rounded-lg bg-ink-800 px-4 py-2 text-sm text-mist-200 transition hover:bg-ink-700"
               >
-                Fermer
+                {fr ? "Fermer" : "Close"}
               </button>
             </div>
           </div>

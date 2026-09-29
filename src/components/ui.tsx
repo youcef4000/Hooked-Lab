@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useLangue } from "./Langue";
 
 export function Card({
   children,
@@ -119,8 +120,9 @@ export function ScoreBar({ valeur, max, label }: { valeur: number; max: number; 
 }
 
 export function Liste({ items, tone = "neutre" }: { items: string[]; tone?: "neutre" | "vert" | "rouge" }) {
+  const langue = useLangue();
   const puces = { neutre: "bg-mist-400", vert: "bg-brand-400", rouge: "bg-rose-warn" };
-  if (!items?.length) return <p className="text-sm text-mist-400">Aucun element.</p>;
+  if (!items?.length) return <p className="text-sm text-mist-400">{langue === "fr" ? "Aucun élément." : "Nothing to show."}</p>;
   return (
     <ul className="space-y-1.5">
       {items.map((item, i) => (
@@ -134,7 +136,8 @@ export function Liste({ items, tone = "neutre" }: { items: string[]; tone?: "neu
 }
 
 export function Chips({ items, tone = "neutre" }: { items: string[]; tone?: "neutre" | "vert" | "bleu" }) {
-  if (!items?.length) return <p className="text-sm text-mist-400">Aucun element.</p>;
+  const langue = useLangue();
+  if (!items?.length) return <p className="text-sm text-mist-400">{langue === "fr" ? "Aucun élément." : "Nothing to show."}</p>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((item, i) => (
@@ -166,12 +169,13 @@ export function Verdict({
   verdict: string;
   children?: ReactNode;
 }) {
+  const fr = useLangue() === "fr";
   const niveau =
     score >= 65
-      ? { mot: "A tester", classe: "text-jade", anneau: "ring-jade/35", fond: "bg-jade/[0.07]" }
+      ? { mot: fr ? "À tester" : "Worth testing", classe: "text-jade", anneau: "ring-jade/35", fond: "bg-jade/[0.07]" }
       : score >= 45
-        ? { mot: "Sous conditions", classe: "text-amber-glow", anneau: "ring-amber-glow/35", fond: "bg-amber-glow/[0.07]" }
-        : { mot: "A eviter", classe: "text-rose-warn", anneau: "ring-rose-warn/35", fond: "bg-rose-warn/[0.07]" };
+        ? { mot: fr ? "Sous conditions" : "With conditions", classe: "text-amber-glow", anneau: "ring-amber-glow/35", fond: "bg-amber-glow/[0.07]" }
+        : { mot: fr ? "À éviter" : "Avoid", classe: "text-rose-warn", anneau: "ring-rose-warn/35", fond: "bg-rose-warn/[0.07]" };
 
   return (
     <div className={`rounded-xl p-5 ring-1 ring-inset ${niveau.anneau} ${niveau.fond}`}>

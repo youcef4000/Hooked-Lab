@@ -1,15 +1,8 @@
 import path from "node:path";
 import { askStructured, type ImagePart, type Usage } from "./claude";
-import {
-  SCHEMA_DZ_COMMUNICATION,
-  SCHEMA_META_ADS,
-  SCHEMA_BANQUE_VIDEOS,
-  SCHEMA_DZ_EXECUTION,
-  SCHEMA_DZ_OFFRE,
-  SCHEMA_SOURCING,
-  SCHEMA_STRATEGIE,
-  SCHEMA_VISUEL,
-} from "./schemas";
+import { construireSchemas, langueAnalyse } from "./schemas";
+import type { Langue } from "./langue";
+import type { Marche } from "./marches";
 import { readFrameBase64 } from "./media";
 import { analysisDir } from "./paths";
 import type {
@@ -23,68 +16,75 @@ import type {
 
 /* ------------------------------------------------------------- prompts */
 
-const SYSTEM_CREATIVE = `Tu es un directeur creative strategy specialise en publicite e-commerce a reponse directe.
-Tu analyses des creatives TikTok, Instagram Reels et Facebook pour des e-commercants algeriens
-qui vendent en paiement a la livraison (COD).
+/** Le marche vise et la langue du lecteur : ils orientent chaque appel. */
+export interface ContexteAnalyse {
+  marche: Marche;
+  langue: Langue;
+}
 
-Tu recois des images extraites de la video, dans l'ordre chronologique, chacune precedee de son
-timestamp. Tu recois aussi la transcription audio quand elle est disponible, et les metadonnees
-du post.
+/** Regle d'ecriture ajoutee quand le lecteur est francophone. */
+const REGLE_ACCENTS = `- Quand tu ecris en francais : un francais correct et ENTIEREMENT ACCENTUE.
+  Tes textes sont affiches tels quels : ecris « à éviter », « l'état », « après »,
+  « créative », « qualité », « problème » — jamais sans accents. Verifie les accords.`;
 
-Methode :
-1. Lis les textes affiches a l'ecran sur chaque image. Sur ce type de creative, les sous-titres
-   incrustes portent souvent l'integralite du script : reconstitue-le a partir de la.
-2. Si une transcription audio est fournie, elle fait autorite pour la voix off. Combine-la avec
-   les textes a l'ecran, sans dupliquer la meme phrase.
-3. Deduis le decoupage en sequences a partir des changements de plan signales et du contenu.
-4. Identifie le produit avec precision : c'est ce qui permettra de le sourcer ensuite.
+function regleLangues(ctx: ContexteAnalyse): string {
+  return [
+    `- LANGUAGE OF THE ANALYSIS: write every analysis field (descriptions, verdicts, explanations, lists) in ${langueAnalyse(ctx.langue)}. The person reading the report reads ${ctx.langue === "fr" ? "French" : "English"}.`,
+    `- LANGUAGE OF THE MARKETING COPY: every text meant for shoppers (hooks, scripts, sales pages, ads, answers to objections) is written in ${ctx.marche.consigneLangueAnnonces}.`,
+    "- Follow the language stated in each field description of the schema: it always wins.",
+    ctx.langue === "fr" || ctx.marche.id === "fr" || ctx.marche.id === "dz" ? REGLE_ACCENTS : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
-Regles strictes :
-- N'invente jamais un timestamp : appuie-toi sur ceux des images fournies.
-- Si une information est absente, ecris-le franchement plutot que de combler par une supposition
-  presentee comme un fait. Baisse le champ "confiance" en consequence.
-- Le champ texte_complet du script doit rester dans la langue d'origine ; utilise traduction_fr
-  pour la version francaise.
-- Tous les autres champs d'analyse sont rediges en francais.
-- Ecris un francais correct et ENTIEREMENT ACCENTUE. Tes textes sont affiches tels
-  quels dans l'application : ecris « à éviter », « l'état », « après », « créative »,
-  « français », « qualité », « problème » — jamais sans accents. Verifie aussi les
-  accords et la ponctuation avant de repondre.
-- Sois concret et actionnable. Pas de generalites publicitaires : un e-commercant doit pouvoir
-  agir directement a partir de ce que tu ecris.`;
+function systemCreative(ctx: ContexteAnalyse): string {
+  const m = ctx.marche;
+  return `You are a creative strategy director specialised in direct-response e-commerce advertising.
+You analyse TikTok, Instagram Reels and Facebook creatives for e-commerce sellers who want to launch
+the product in ${m.nom.en} (${m.modele === "cod" ? "cash on delivery" : "prepaid online orders"}).
 
-const SYSTEM_DZ = `Tu es consultant e-commerce specialise sur le marche algerien, avec une double expertise :
-sourcing produit en Chine (Alibaba, 1688, Taobao) et publicite a reponse directe en Algerie.
+You receive frames extracted from the video, in chronological order, each preceded by its timestamp.
+You also receive the audio transcript when available, and the post metadata.
 
-Tu recois l'analyse d'une creative publicitaire et son produit. Tu produis le dossier operationnel
-complet pour lancer ce produit en Algerie.
+Method:
+1. Read the text shown on screen in each frame. On this kind of creative, burned-in subtitles often
+   carry the entire script: reconstruct it from them.
+2. If an audio transcript is provided, it is authoritative for the voice-over. Combine it with the
+   on-screen text without duplicating the same sentence.
+3. Infer the sequence breakdown from the flagged shot changes and from the content.
+4. Identify the product precisely: this is what will allow it to be sourced next.
 
-Contexte du marche algerien a integrer systematiquement :
-- Le paiement se fait a la livraison (COD). Le taux de livraison reussie tourne autour de 55 a 75 %.
-  Les retours coutent cher : la marge doit absorber les colis non livres.
-- La livraison passe par Yalidine, ZR Express, Maystro, Noest. Domicile : environ 500 a 900 DZD.
-  Stopdesk : environ 350 a 600 DZD. Les wilayas du sud coutent nettement plus cher.
-- Les importateurs achetent le plus souvent leurs devises au marche parallele (square), autour de
-  250 DZD pour 1 USD, contre environ 132 DZD au taux officiel. Raisonne au taux parallele et
-  precise-le dans tes hypotheses.
-- La communication qui convertit est en darija algerienne, parfois melangee de francais.
-  L'arabe litteraire sonne institutionnel et convertit moins.
-- Le trafic vient surtout de Facebook et TikTok. Instagram est secondaire.
-- Le client type se mefie de la qualite, veut voir le produit en vrai et veut pouvoir appeler
-  un numero de telephone.
+Strict rules:
+- Never invent a timestamp: rely on those of the frames provided.
+- If information is missing, say so plainly rather than filling the gap with a guess presented as
+  a fact. Lower the "confiance" field accordingly.
+- The script's texte_complet stays in its original language; traduction_fr holds the translation.
+${regleLangues(ctx)}
+- Be concrete and actionable. No advertising platitudes: a seller must be able to act directly on
+  what you write.`;
+}
 
-Regles strictes :
-- Les prix chinois que tu estimes sont des ordres de grandeur : dis-le dans les hypotheses et
-  regle le champ fiabilite honnetement.
-- Les requetes en chinois doivent etre de vraies expressions utilisees sur 1688, pas du francais
-  traduit mot a mot.
-- Le script darija doit etre ecrit tel qu'on le parle en Algerie, en caracteres arabes.
-- Ecris tout le reste en francais, sauf les champs explicitement demandes en arabe.
-- Ecris un francais correct et ENTIEREMENT ACCENTUE. Tes textes sont affiches tels
-  quels dans l'application : ecris « à éviter », « l'état », « après », « créative »,
-  « français », « qualité », « problème » — jamais sans accents. Verifie aussi les
-  accords et la ponctuation avant de repondre.
-- Sois concret : chiffres, formulations pretes a copier, etapes executables.`;
+function systemMarche(ctx: ContexteAnalyse): string {
+  const m = ctx.marche;
+  return `You are an e-commerce consultant specialised in ${m.nom.en}, with a double expertise:
+product sourcing in China (Alibaba, 1688, Taobao) and direct-response advertising in ${m.nom.en}.
+
+You receive the analysis of an advertising creative and its product. You produce the complete
+operational file to launch this product in ${m.nom.en}, with amounts in ${m.devise}.
+
+Market context to take into account systematically:
+${m.contexte}
+
+Strict rules:
+- The Chinese prices you estimate are orders of magnitude: say so in the assumptions and set the
+  reliability field honestly.
+- Chinese queries must be real expressions used on 1688, not word-for-word translations.
+- All retail prices, budgets and amounts for the market are in ${m.devise}; purchase and shipping
+  prices from China are in USD.
+${regleLangues(ctx)}
+- Be concrete: figures, wording ready to copy, executable steps.`;
+}
 
 /* --------------------------------------------------- construction du contexte */
 
@@ -239,11 +239,16 @@ export async function analyseCreative(
   frames: Frame[],
   transcript: Transcript,
   coupes: number[],
+  ctx: ContexteAnalyse,
   surAvancement?: (detail: string) => void,
 ): Promise<{ creative: CreativeAnalysis; sourcing: Omit<Sourcing, "liens">; usage: Usage }> {
   const images = framesToImages(id, frames);
+  const SCHEMAS = construireSchemas(ctx);
+  const SYSTEM_CREATIVE = systemCreative(ctx);
+  const SYSTEM_MARCHE = systemMarche(ctx);
+  const fr = ctx.langue === "fr";
 
-  surAvancement?.("Lecture de la video : produit, script et sequences...");
+  surAvancement?.(fr ? "Lecture de la vidéo : produit, script et séquences…" : "Reading the video: product, script and sequences…");
   const visuel = await askStructured<BlocVisuel>({
     system: SYSTEM_CREATIVE,
     images,
@@ -252,13 +257,17 @@ export async function analyseCreative(
     cacheImages: true,
     effort: "low",
     texte: `${metaBlock(meta, transcript, coupes)}
-Pour cette etape, produis uniquement : le produit identifie, le script complet,
-le decoupage en sequences et l'analyse du hook.`,
-    schema: SCHEMA_VISUEL,
+For this step, produce only: the identified product, the full script, the
+sequence breakdown and the hook analysis.`,
+    schema: SCHEMAS.VISUEL,
   });
 
   const fiche = ficheProduit(visuel.data, meta);
-  surAvancement?.(`Produit identifié : ${visuel.data.produit.nom_fr}. Angles et sourcing…`);
+  surAvancement?.(
+    fr
+      ? `Produit identifié : ${visuel.data.produit.nom_fr}. Angles et sourcing…`
+      : `Product identified: ${visuel.data.produit.nom_fr}. Angles and sourcing…`,
+  );
 
   // B et C dependent tous deux de A, mais pas l'un de l'autre.
   const [strategie, sourcing] = await Promise.all([
@@ -267,7 +276,7 @@ le decoupage en sequences et l'analyse du hook.`,
       images,
       effort: "medium",
       texte: [
-        "Voici la lecture factuelle deja etablie sur cette meme video.",
+        "Here is the factual reading already established on this same video.",
         "",
         fiche,
         "",
@@ -282,22 +291,22 @@ le decoupage en sequences et l'analyse du hook.`,
           : `## Duree reelle : ${Math.round(meta.dureeSecondes)} s, ${coupes.length} changements de plan detectes`,
         meta.largeur && meta.hauteur ? `## Resolution : ${meta.largeur}x${meta.hauteur}` : "",
         "",
-        "## Tache",
-        "En t'appuyant sur les images et sur cette lecture, produis l'analyse strategique :",
-        "angles marketing, mots-cles, bande son, structure de production et synthese.",
-        "Reste coherent avec le produit identifie ci-dessus.",
+        "## Task",
+        "Building on the frames and on this reading, produce the strategic analysis:",
+        "marketing angles, keywords, soundtrack, production structure and summary.",
+        `Stay consistent with the product identified above, and think about launching it in ${ctx.marche.nom.en}.`,
       ].join("\n"),
-      schema: SCHEMA_STRATEGIE,
+      schema: SCHEMAS.STRATEGIE,
     }),
     askStructured<BlocSourcing>({
-      system: SYSTEM_DZ,
+      system: SYSTEM_MARCHE,
       effort: "low",
       texte: `${fiche}
 
-## Tache
-Produis uniquement le dossier de sourcing : requetes fournisseurs, estimation
-des prix, conseils de negociation et risques d'importation.`,
-      schema: SCHEMA_SOURCING,
+## Task
+Produce only the sourcing file: supplier queries, price estimates, negotiation
+tips and import risks for ${ctx.marche.nom.en}.`,
+      schema: SCHEMAS.SOURCING,
     }),
   ]);
 
@@ -313,8 +322,14 @@ export async function analysePackDZ(
   creative: CreativeAnalysis,
   sourcing: Omit<Sourcing, "liens">,
   meta: SourceMeta,
+  ctx: ContexteAnalyse,
   surAvancement?: (detail: string) => void,
 ): Promise<{ dz: PackDZ; usage: Usage }> {
+  const SCHEMAS = construireSchemas(ctx);
+  const SYSTEM_MARCHE = systemMarche(ctx);
+  const m = ctx.marche;
+  const algerie = m.id === "dz";
+  const fr = ctx.langue === "fr";
   const contexte = [
     "## Produit identifie",
     JSON.stringify(creative.produit, null, 2),
@@ -322,111 +337,116 @@ export async function analysePackDZ(
     "## Script original",
     creative.script.texte_complet,
     "",
-    "## Angles deja exploites dans la creative",
+    "## Angles already used in the creative",
     JSON.stringify(creative.angles_marketing, null, 2),
     "",
-    "## Synthese de l'analyse",
+    "## Summary of the analysis",
     creative.resume_executif,
     "",
     `## Post d'origine sur ${meta.platform}`,
     `Vues : ${meta.vues ?? "inconnu"} | Likes : ${meta.likes ?? "inconnu"}`,
     "",
-    "## Economie du produit etablie a l'etape precedente",
+    "## Product economics established at the previous step (retail prices in the market currency)",
     JSON.stringify(sourcing.estimation, null, 2),
   ].join("\n");
 
-  surAvancement?.("Redaction du dossier de lancement algerien...");
+  surAvancement?.(
+    fr ? `Rédaction du dossier de lancement — ${m.nom.fr}…` : `Writing the launch file — ${m.nom.en}…`,
+  );
+
+  const regleMeta = algerie
+    ? `- Write like an Algerian advertiser selling cash on delivery, not like an international
+  brand: price in dinars, mention delivery to the wilayas, direct tone.
+
+Arabic version — strict requirements:
+- Write in Algerian darija as actually spoken, in Arabic script, not Modern Standard Arabic and
+  not arabizi (Latin numbers).
+- It is not a word-for-word translation of the French: rephrase the way an Algerian would
+  naturally write it on Facebook.
+- French words commonly used in darija (livraison, commande, gratuit) may stay in French if they
+  sound more natural that way.
+- Check Arabic spelling and punctuation before answering.`
+    : `- Write like a performance marketer who sells in ${m.nom.en}: price in ${m.devise}, concrete
+  benefit, reassurance on delivery times, secure payment and returns.
+- The "_ar" fields hold VARIANT B of each ad, in the same language: a different hook and angle,
+  so the seller can A/B test. Not a paraphrase of variant A.
+- Respect local advertising rules: no unsubstantiated claims, no fake scarcity.`;
 
   const [offre, communication, execution, metaAds, videos] = await Promise.all([
     askStructured<BlocOffre>({
-      system: SYSTEM_DZ,
+      system: SYSTEM_MARCHE,
       effort: "low",
       texte: `${contexte}
 
-## Tache
-Produis le verdict marche et les textes de vente : score du produit, script en
-darija, page de vente en francais et en arabe algerien.`,
-      schema: SCHEMA_DZ_OFFRE,
+## Task
+Produce the market verdict and the sales copy: product score for ${m.nom.en},
+${algerie ? "script in darija, sales page in French and in Algerian Arabic" : "localised video script, sales page (main version and variant B for A/B testing)"}.`,
+      schema: SCHEMAS.OFFRE,
     }),
     askStructured<BlocCommunication>({
-      system: SYSTEM_DZ,
+      system: SYSTEM_MARCHE,
       effort: "low",
       texte: `${contexte}
 
-## Tache
-Produis la communication publicitaire : angles adaptes au marche algerien,
-annonces pretes a publier, objections clients et reponses.`,
-      schema: SCHEMA_DZ_COMMUNICATION,
+## Task
+Produce the advertising communication: angles adapted to ${m.nom.en}, ads ready
+to publish, customer objections and answers.`,
+      schema: SCHEMAS.COMMUNICATION,
     }),
     askStructured<BlocExecution>({
-      system: SYSTEM_DZ,
+      system: SYSTEM_MARCHE,
       effort: "low",
       texte: `${contexte}
 
-## Tache
-Produis le volet execution : ciblage publicitaire, idees de creatives a tourner
-localement, etat de la concurrence, risques et plan de lancement.`,
-      schema: SCHEMA_DZ_EXECUTION,
+## Task
+Produce the execution plan: ad targeting in ${m.nom.en}, creative ideas to shoot,
+state of the competition, risks and launch plan.`,
+      schema: SCHEMAS.EXECUTION,
     }),
     askStructured<BlocMeta>({
-      system: SYSTEM_DZ,
+      system: SYSTEM_MARCHE,
       effort: "medium",
       texte: `${contexte}
 
-## Tache
-Produis des annonces pretes a coller dans le gestionnaire de publicites Meta
-(Facebook et Instagram), chacune sur un angle different.
+## Task
+Produce ads ready to paste into Meta Ads Manager (Facebook and Instagram), each on
+a different angle.
 
-Regles de redaction imposees par le format Meta :
-- Texte principal : le benefice concret et le prix doivent tenir dans les deux
-  premieres lignes, avant la coupure « voir plus » vers 125 caracteres.
-- Titre : 40 caracteres maximum, sinon Meta le tronque.
-- Description : 30 caracteres maximum, reservee a la reassurance (livraison,
-  paiement a la livraison, garantie).
-- Ecris comme un annonceur algerien qui vend en COD, pas comme une marque
-  internationale : prix en dinars, mention de la livraison en wilayas, ton direct.
-
-Version arabe — exigences strictes :
-- Ecris en darija algerienne reellement parlee, en caracteres arabes, pas en
-  arabe litteraire et pas en arabizi (chiffres latins).
-- Ce n'est pas une traduction mot a mot du francais : reformule comme un
-  Algerien l'ecrirait naturellement sur Facebook.
-- Les mots francais couramment employes en darija (livraison, commande, gratuit)
-  peuvent rester en francais s'ils sonnent plus naturels ainsi.
-- Verifie l'orthographe arabe et la ponctuation avant de repondre.`,
-      schema: SCHEMA_META_ADS,
+Writing rules imposed by the Meta format:
+- Primary text: the concrete benefit and the price must fit in the first two lines,
+  before the "see more" cut around 125 characters.
+- Headline: 40 characters maximum, otherwise Meta truncates it.
+- Description: 30 characters maximum, used for reassurance.
+${regleMeta}`,
+      schema: SCHEMAS.META_ADS,
     }),
     askStructured<BlocVideos>({
-      system: SYSTEM_DZ,
+      system: SYSTEM_MARCHE,
       effort: "medium",
       texte: `${contexte}
 
-## Requetes fournisseur deja etablies
+## Supplier queries already established
 ${JSON.stringify(sourcing.requetes, null, 2)}
 
-## Tache
-L'utilisateur veut monter sa propre creative verticale 9:16 sans tourner
-lui-meme. Donne-lui les pistes de videos reutilisables ou l'on voit CE produit.
+## Task
+The user wants to edit their own vertical 9:16 creative without shooting themselves.
+Give them leads to reusable videos where THIS product appears.
 
-Regles imperatives :
-- N'invente JAMAIS d'URL de video, de nom de compte ou de titre precis : tu
-  n'as pas acces au web et ces liens seraient faux. Donne uniquement la
-  REQUETE exacte a taper sur chaque plateforme ; l'application en fera un lien.
-- Classe les pistes de la plus utile a la moins utile.
-- Priorite absolue aux sources ou le produit apparait A L'IDENTIQUE et SANS
-  TEXTE INCRUSTE : les fiches fournisseur 1688, Taobao et AliExpress contiennent
-  presque toujours des videos de demonstration du produit, filmees sur fond
-  neutre, telechargeables et sans texte. C'est la meilleure matiere premiere
-  pour un montage.
-- Ensuite seulement, les plateformes sociales (TikTok, Instagram, YouTube
-  Shorts) ou l'on trouve des demonstrations en usage reel — en signalant que
-  ces videos portent souvent du texte incruste et appartiennent a leur auteur.
-- Termine par une ou deux pistes de plans d'ambiance libres de droits, utiles
-  comme plans de coupe.
-- Pour 1688 et Taobao, la requete doit etre en chinois. Pour AliExpress et
-  Alibaba, en anglais. Pour TikTok et Instagram, en francais, en arabe
-  algerien ou en anglais selon ce qui donnera le plus de resultats.`,
-      schema: SCHEMA_BANQUE_VIDEOS,
+Mandatory rules:
+- NEVER invent a video URL, account name or precise title: you have no web access and
+  those links would be fake. Give only the exact QUERY to type on each platform; the
+  application turns it into a link.
+- Rank leads from most to least useful.
+- Absolute priority to sources where the product appears IDENTICALLY and WITHOUT
+  BURNED-IN TEXT: 1688, Taobao and AliExpress listings almost always carry product
+  demo videos, shot on a neutral background, downloadable and text-free. That is the
+  best raw material for an edit.
+- Only then social platforms (TikTok, Instagram, YouTube Shorts) with real-use demos —
+  noting that those videos often carry burned-in text and belong to their creator.
+- End with one or two leads for royalty-free mood shots, useful as cutaways.
+- For 1688 and Taobao, the query must be in Chinese. For AliExpress and Alibaba, in
+  English. For TikTok and Instagram, in ${m.consigneLangueAnnonces}.`,
+      schema: SCHEMAS.BANQUE_VIDEOS,
     }),
   ]);
 

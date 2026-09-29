@@ -65,7 +65,7 @@ export function buildSourcingLinks(requetes: RequetesSourcing): LienSourcing[] {
   if (en[0]) {
     push(
       "Google Images",
-      `Images de reference — ${en[0]}`,
+      `Reference images — ${en[0]}`,
       `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(en[0])}`,
       "en",
     );
@@ -82,17 +82,23 @@ export const RECHERCHE_PAR_IMAGE = [
   {
     plateforme: "Alibaba",
     url: "https://www.alibaba.com/picture/search.html",
-    aide: "Depose une keyframe du produit pour trouver les fournisseurs correspondants.",
+    aide: {
+      fr: "Dépose une image clé du produit pour trouver les fournisseurs correspondants.",
+      en: "Drop a key frame of the product to find matching suppliers.",
+    },
   },
   {
     plateforme: "1688",
     url: "https://www.1688.com/",
-    aide: "Clique sur l'icone appareil photo dans la barre de recherche, puis depose la keyframe. C'est la methode la plus fiable pour retrouver un produit vu en video.",
+    aide: {
+      fr: "Clique sur l'icône appareil photo dans la barre de recherche, puis dépose l'image clé. C'est la méthode la plus fiable pour retrouver un produit vu en vidéo.",
+      en: "Click the camera icon in the search bar, then drop the key frame. It's the most reliable way to find a product seen in a video.",
+    },
   },
   {
     plateforme: "AliExpress",
     url: "https://www.aliexpress.com/",
-    aide: "Icone appareil photo dans la barre de recherche.",
+    aide: { fr: "Icône appareil photo dans la barre de recherche.", en: "Camera icon in the search bar." },
   },
 ] as const;
 
@@ -122,7 +128,7 @@ export function lienRechercheVideo(source: string, requete: string): string {
     case "Pinterest":
       return `https://www.pinterest.com/search/pins/?q=${q}`;
     case "Banque libre":
-      return `https://www.pexels.com/fr-fr/chercher/videos/${q}/`;
+      return `https://www.pexels.com/search/videos/${q}/`;
     default:
       return `https://www.google.com/search?q=${q}&tbm=vid`;
   }

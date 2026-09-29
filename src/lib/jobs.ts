@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { Job, JobStep, StepId } from "@/types/analysis";
+import type { Langue } from "./langue";
 
 /**
  * Registre des analyses en cours, en memoire. Les rapports termines sont
@@ -29,17 +30,21 @@ const registry: JobRegistry =
     })(),
   });
 
-function etapes(origine: "url" | "fichier"): { id: StepId; label: string }[] {
+function etapes(origine: "url" | "fichier", langue: Langue): { id: StepId; label: string }[] {
+  const fr = langue === "fr";
   return [
     {
       id: "acquisition",
-      label: origine === "url" ? "Récupération de la vidéo" : "Réception du fichier",
+      label:
+        origine === "url"
+          ? fr ? "Récupération de la vidéo" : "Fetching the video"
+          : fr ? "Réception du fichier" : "Receiving the file",
     },
-    { id: "media", label: "Extraction de l'audio et des images clés" },
-    { id: "transcription", label: "Transcription du script" },
-    { id: "analyse_creative", label: "Analyse créative et sourcing" },
-    { id: "sourcing_dz", label: "Dossier de lancement Algérie" },
-    { id: "finalisation", label: "Génération du rapport" },
+    { id: "media", label: fr ? "Extraction de l'audio et des images clés" : "Extracting audio and key frames" },
+    { id: "transcription", label: fr ? "Transcription du script" : "Transcribing the script" },
+    { id: "analyse_creative", label: fr ? "Analyse créative et sourcing" : "Creative analysis and sourcing" },
+    { id: "sourcing_dz", label: fr ? "Dossier de lancement" : "Launch file" },
+    { id: "finalisation", label: fr ? "Génération du rapport" : "Building the report" },
   ];
 }
 
@@ -48,14 +53,16 @@ export function createJob(
   url: string,
   origine: "url" | "fichier",
   proprietaireId?: string,
+  langue: Langue = "fr",
 ): Job {
   const job: Job = {
     id,
     url,
     origine,
     proprietaireId,
+    langue,
     status: "en_attente",
-    steps: etapes(origine).map((e) => ({ ...e, status: "attente" })),
+    steps: etapes(origine, langue).map((e) => ({ ...e, status: "attente" })),
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

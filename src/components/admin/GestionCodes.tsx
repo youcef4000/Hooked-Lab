@@ -3,7 +3,13 @@
 import { useMemo, useState } from "react";
 import { Card } from "../ui";
 import { CopyButton } from "../CopyButton";
-import { ENGAGEMENTS, PALIERS, RECHARGES, creditsBonus } from "@/lib/tarifs";
+import { ENGAGEMENTS, PALIERS, RECHARGES, totalPalier } from "@/lib/tarifs";
+
+/** Montant d'un code : en dollars, ou en dinars pour les codes de l'ancienne grille. */
+function montantCode(c: CodeActivation): string {
+  if (typeof c.montantUsd === "number") return `${c.montantUsd.toLocaleString("fr-FR")} $`;
+  return `${(c.montantDzd ?? 0).toLocaleString("fr-FR")} DA`;
+}
 import type { CodeActivation, TypeCode } from "@/lib/codes";
 
 /* ============================================================================
@@ -49,12 +55,10 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
     const p = PALIERS.find((x) => x.nom === palier);
     const e = ENGAGEMENTS.find((x) => x.mois === mois);
     if (!p || !e) return null;
-    const mensuel = Math.round((p.base * (1 - e.remise)) / 100) * 100;
     return {
-      credits: p.creditsMensuels * e.mois + creditsBonus(p.creditsMensuels, e.moisBonus),
-      montant: mensuel * e.mois,
-      duree: `${e.mois * 30} jours`,
-      bonus: creditsBonus(p.creditsMensuels, e.moisBonus),
+      credits: p.creditsMensuels * e.mois,
+      montant: totalPalier(p, e.remise, e.mois),
+      duree: e.mois === 12 ? "365 jours" : "30 jours",
     };
   }, [type, palier, mois, recharge]);
 
@@ -104,7 +108,7 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
 
   const dispo = codes.filter((c) => !c.utiliseLe && !c.annule).length;
   const utilises = codes.filter((c) => c.utiliseLe).length;
-  const encaisse = codes.filter((c) => c.utiliseLe).reduce((n, c) => n + c.montantDzd, 0);
+  const encaisse = codes.filter((c) => c.utiliseLe).reduce((n, c) => n + (c.montantUsd ?? 0), 0);
 
   const styleSaisie =
     "w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-mist-100 outline-none transition focus:border-brand-500";
@@ -115,7 +119,7 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
         {[
           ["Codes disponibles", String(dispo), "Fabriqués, pas encore activés"],
           ["Codes activés", String(utilises), "Comptes chargés"],
-          ["Encaissé", `${encaisse.toLocaleString("fr-FR")} DA`, "Sur les codes activés"],
+          ["Encaissé", `${encaisse.toLocaleString("fr-FR")} $`, "Sur les codes activés"],
         ].map(([label, valeur, detail]) => (
           <Card key={label} className="p-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-mist-400">{label}</p>
@@ -176,8 +180,8 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
                 >
                   {ENGAGEMENTS.map((e) => (
                     <option key={e.mois} value={e.mois}>
-                      {e.libelle}
-                      {e.moisBonus > 0 ? ` (+${e.moisBonus} mois offert${e.moisBonus > 1 ? "s" : ""})` : ""}
+                      {e.libelle.fr}
+                      {e.remise > 0 ? ` (−${Math.round(e.remise * 100)} %)` : ""}
                     </option>
                   ))}
                 </select>
@@ -189,7 +193,7 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
               <select value={recharge} onChange={(e) => setRecharge(e.target.value)} className={styleSaisie}>
                 {RECHARGES.map((r) => (
                   <option key={r.credits} value={String(r.credits)}>
-                    {r.credits} crédits — {r.prix.toLocaleString("fr-FR")} DA ({r.libelle})
+                    {r.credits} crédits — {r.prix} $ ({r.libelle.fr})
                   </option>
                 ))}
               </select>
@@ -204,7 +208,7 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Karim 0661223344 — BaridiMob 12/03"
+                placeholder="Karim +213 661 22 33 44 — RedotPay 12/03"
                 className={styleSaisie}
               />
             </label>
@@ -225,10 +229,8 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
             <div className="rounded-lg border border-ink-700 bg-ink-950 px-3.5 py-2.5 text-xs leading-relaxed text-mist-300">
               Le client recevra{" "}
               <strong className="text-brand-300">{apercu.credits} crédits</strong>
-              {"bonus" in apercu && apercu.bonus ? (
-                <span className="text-jade"> (dont {apercu.bonus} offerts)</span>
-              ) : null}{" "}
-              pour <strong className="text-mist-100">{apercu.montant.toLocaleString("fr-FR")} DA</strong>,
+{" "}
+              pour <strong className="text-mist-100">{apercu.montant.toLocaleString("fr-FR")} $</strong>,
               valable {apercu.duree}.
             </div>
           )}
@@ -324,7 +326,7 @@ export function GestionCodes({ initiaux }: { initiaux: CodeActivation[] }) {
                   {c.annule ? "Annulé" : c.utiliseLe ? "Activé" : "Disponible"}
                 </span>
                 <span className="text-xs text-mist-300">
-                  {c.palier} · {c.credits} cr. · {c.montantDzd.toLocaleString("fr-FR")} DA
+                  {c.palier} · {c.credits} cr. · {montantCode(c)}
                 </span>
                 {c.note && <span className="text-xs text-mist-500">— {c.note}</span>}
                 <span className="ml-auto text-xs text-mist-500">

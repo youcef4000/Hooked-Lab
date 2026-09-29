@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Badge, Card, Section } from "../ui";
 import { CopyButton } from "../CopyButton";
+import { useRapport } from "./contexte";
 import type { MetaAd } from "@/types/analysis";
 
 /* ============================================================================
@@ -27,6 +28,7 @@ function Champ({
   limite: number;
   rtl?: boolean;
 }) {
+  const { fr } = useRapport();
   const longueur = valeur.length;
   const depasse = longueur > limite;
 
@@ -41,8 +43,12 @@ function Champ({
             className={`text-[11px] tabular-nums ${depasse ? "text-amber-glow" : "text-mist-400"}`}
             title={
               depasse
-                ? `Au-dela de ${limite} caracteres, Meta tronque l'affichage`
-                : `Limite conseillee : ${limite} caracteres`
+                ? fr
+                  ? `Au-delà de ${limite} caractères, Meta tronque l'affichage`
+                  : `Beyond ${limite} characters, Meta truncates the text`
+                : fr
+                  ? `Limite conseillée : ${limite} caractères`
+                  : `Recommended limit: ${limite} characters`
             }
           >
             {longueur}/{limite}
@@ -63,11 +69,15 @@ function Champ({
 }
 
 function CarteAnnonce({ ad }: { ad: MetaAd }) {
-  const [langue, setLangue] = useState<"fr" | "ar">("fr");
-  const ar = langue === "ar";
+  const { fr, marche, langue: langueUi } = useRapport();
+  const algerie = marche.id === "dz";
+  const [version, setVersion] = useState<"a" | "b">("a");
+  const b = version === "b";
+  // Algerie : la seconde version est en darija (arabe). Ailleurs : variante B.
+  const ar = b && /[\u0600-\u06FF]/.test(ad.texte_principal_ar);
 
   // Bloc complet, pour qui prefere tout copier d'un coup.
-  const tout = ar
+  const tout = b
     ? `${ad.texte_principal_ar}\n\n${ad.titre_ar}\n${ad.description_ar}`
     : `${ad.texte_principal}\n\n${ad.titre}\n${ad.description}`;
 
@@ -76,48 +86,50 @@ function CarteAnnonce({ ad }: { ad: MetaAd }) {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-mist-100">{ad.nom_variante}</h3>
-          <p className="mt-0.5 text-xs text-mist-400">Angle : {ad.angle_utilise}</p>
+          <p className="mt-0.5 text-xs text-mist-400">
+            Angle{fr ? " :" : ":"} {ad.angle_utilise}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-0.5 rounded-lg border border-ink-700 bg-ink-850 p-0.5">
             <button
-              onClick={() => setLangue("fr")}
+              onClick={() => setVersion("a")}
               className={`rounded-md px-2.5 py-1 text-xs transition ${
-                !ar ? "bg-ink-700 text-mist-100" : "text-mist-400 hover:text-mist-200"
+                !b ? "bg-ink-700 text-mist-100" : "text-mist-400 hover:text-mist-200"
               }`}
             >
-              Français
+              {algerie ? "Français" : fr ? "Variante A" : "Variant A"}
             </button>
             <button
-              onClick={() => setLangue("ar")}
+              onClick={() => setVersion("b")}
               className={`rounded-md px-2.5 py-1 text-xs transition ${
-                ar ? "bg-ink-700 text-mist-100" : "text-mist-400 hover:text-mist-200"
+                b ? "bg-ink-700 text-mist-100" : "text-mist-400 hover:text-mist-200"
               }`}
             >
-              العربية
+              {algerie ? "العربية" : marche.secondeVersion[langueUi]}
             </button>
           </div>
-          <CopyButton texte={tout} label="Tout copier" />
+          <CopyButton texte={tout} label={fr ? "Tout copier" : "Copy all"} />
         </div>
       </div>
 
       <div className="space-y-3">
         <Champ
-          label="Texte principal"
-          valeur={ar ? ad.texte_principal_ar : ad.texte_principal}
+          label={fr ? "Texte principal" : "Primary text"}
+          valeur={b ? ad.texte_principal_ar : ad.texte_principal}
           limite={LIMITES.texte_principal}
           rtl={ar}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <Champ
-            label="Titre"
-            valeur={ar ? ad.titre_ar : ad.titre}
+            label={fr ? "Titre" : "Headline"}
+            valeur={b ? ad.titre_ar : ad.titre}
             limite={LIMITES.titre}
             rtl={ar}
           />
           <Champ
             label="Description"
-            valeur={ar ? ad.description_ar : ad.description}
+            valeur={b ? ad.description_ar : ad.description}
             limite={LIMITES.description}
             rtl={ar}
           />
@@ -125,7 +137,7 @@ function CarteAnnonce({ ad }: { ad: MetaAd }) {
       </div>
 
       <div className="mt-4 flex items-center gap-2 border-t border-ink-800 pt-3">
-        <span className="text-[11px] uppercase tracking-wide text-mist-400">Bouton</span>
+        <span className="text-[11px] uppercase tracking-wide text-mist-400">{fr ? "Bouton" : "Button"}</span>
         <Badge tone="vert">{ad.bouton_cta}</Badge>
       </div>
     </Card>
@@ -133,21 +145,30 @@ function CarteAnnonce({ ad }: { ad: MetaAd }) {
 }
 
 export function MetaAdsSection({ ads }: { ads: MetaAd[] }) {
+  const { fr } = useRapport();
+  const titre = fr ? "Annonces Meta prêtes à publier" : "Meta ads ready to publish";
   // Les rapports produits avant l'ajout de cette section n'ont pas le champ.
   // On le dit explicitement plutot que de disparaitre sans explication.
   if (!ads?.length) {
     return (
       <Section
-        titre="Annonces Meta prêtes à publier"
-        soustitre="Texte principal, titre, description et bouton, prêts à coller dans le gestionnaire Meta."
+        titre={titre}
+        soustitre={
+          fr
+            ? "Texte principal, titre, description et bouton, prêts à coller dans le gestionnaire Meta."
+            : "Primary text, headline, description and button, ready to paste into Meta Ads Manager."
+        }
       >
         <Card className="border-dashed p-6 text-center">
           <p className="text-sm text-mist-200">
-            Cette analyse a été produite avant l&apos;ajout des annonces Meta.
+            {fr
+              ? "Cette analyse a été produite avant l'ajout des annonces Meta."
+              : "This analysis was produced before Meta ads were added."}
           </p>
           <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-mist-400">
-            Relance une analyse sur la même créative pour obtenir les annonces au format Meta,
-            en français et en arabe algérien.
+            {fr
+              ? "Relance une analyse sur la même créative pour obtenir les annonces au format Meta."
+              : "Run a new analysis on the same creative to get the ads in Meta format."}
           </p>
         </Card>
       </Section>
@@ -156,8 +177,12 @@ export function MetaAdsSection({ ads }: { ads: MetaAd[] }) {
 
   return (
     <Section
-      titre="Annonces Meta prêtes à publier"
-      soustitre="Chaque champ correspond à une zone du gestionnaire de publicités Facebook et Instagram. Copie, colle, lance."
+      titre={titre}
+      soustitre={
+        fr
+          ? "Chaque champ correspond à une zone du gestionnaire de publicités Facebook et Instagram. Copie, colle, lance."
+          : "Each field matches a box in Facebook & Instagram Ads Manager. Copy, paste, launch."
+      }
     >
       <div className="space-y-3">
         {ads.map((ad, i) => (
@@ -165,9 +190,9 @@ export function MetaAdsSection({ ads }: { ads: MetaAd[] }) {
         ))}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-mist-400">
-        Les compteurs signalent les dépassements : au-delà de la limite, Meta tronque le texte
-        dans le fil d&apos;actualité. Teste au moins trois angles différents en parallèle avant
-        d&apos;augmenter le budget sur le gagnant.
+        {fr
+          ? "Les compteurs signalent les dépassements : au-delà de la limite, Meta tronque le texte dans le fil d'actualité. Teste au moins trois angles différents en parallèle avant d'augmenter le budget sur le gagnant."
+          : "Counters flag overflows: beyond the limit, Meta truncates the text in the feed. Test at least three different angles in parallel before scaling budget on the winner."}
       </p>
     </Section>
   );

@@ -7,9 +7,12 @@ import { config } from "@/lib/config";
 import { estConnecte } from "@/lib/admin-auth";
 import { utilisateurCourant } from "@/lib/session";
 import { abonnementActif } from "@/lib/comptes";
+import { langueCourante } from "@/lib/langue-serveur";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Analyser une créative" };
+export async function generateMetadata() {
+  return { title: (await langueCourante()) === "fr" ? "Analyser une créative" : "Analyse a creative" };
+}
 
 /* ============================================================================
    Deux pages en une, selon qui regarde.
@@ -30,11 +33,12 @@ export default async function PageAnalyser() {
   const peutAnalyser = proprietaire || (actif && abonne.credits > 0);
 
   const cleManquante = proprietaire && !config.anthropic.apiKey;
+  const langue = await langueCourante();
 
   const alertes = (
     <>
       {!peutAnalyser && (
-        <BandeauAcces connecte={abonne !== null} credits={abonne?.credits ?? 0} abonnementActif={actif} />
+        <BandeauAcces connecte={abonne !== null} credits={abonne?.credits ?? 0} abonnementActif={actif} langue={langue} />
       )}
       {cleManquante && (
         <div className="mb-6 rounded-[var(--r-lg)] border border-amber-glow/30 bg-amber-glow/10 px-5 py-4">

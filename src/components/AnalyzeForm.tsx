@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { evenement } from "./Pixels";
+import { useT } from "./Langue";
+import { useMarche } from "./Marche";
 
 const EXEMPLES = [
   { label: "TikTok", exemple: "https://www.tiktok.com/@compte/video/7412345678901234567" },
@@ -10,8 +12,29 @@ const EXEMPLES = [
   { label: "Facebook", exemple: "https://www.facebook.com/reel/1234567890" },
 ];
 
+const TEXTES = {
+  fr: {
+    placeholder: "Colle ici le lien TikTok, Instagram ou Facebook",
+    lancement: "Lancement…",
+    analyser: "Analyser le lien",
+    echec: "Le lancement de l'analyse a échoué.",
+    serveur: "Le serveur ne répond pas. Réessaie dans un instant.",
+    exemples: "Exemples :",
+  },
+  en: {
+    placeholder: "Paste a TikTok, Instagram or Facebook link",
+    lancement: "Starting…",
+    analyser: "Analyse the link",
+    echec: "The analysis could not start.",
+    serveur: "The server is not responding. Try again in a moment.",
+    exemples: "Examples:",
+  },
+};
+
 export function AnalyzeForm() {
   const router = useRouter();
+  const t = useT(TEXTES);
+  const [marche] = useMarche();
   const [url, setUrl] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
@@ -25,12 +48,12 @@ export function AnalyzeForm() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, marche }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setErreur(data.error ?? "Le lancement de l'analyse a echoue.");
+        setErreur(data.error ?? t.echec);
         setEnvoi(false);
         return;
       }
@@ -39,7 +62,7 @@ export function AnalyzeForm() {
       evenement("Lead", { content_name: "analyse_lancee", source: "lien" });
       router.push(`/analyse/${data.id}`);
     } catch {
-      setErreur("Serveur injoignable. Vérifie que `npm run dev` tourne toujours.");
+      setErreur(t.serveur);
       setEnvoi(false);
     }
   }
@@ -62,10 +85,10 @@ export function AnalyzeForm() {
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="Colle ici le lien TikTok, Instagram ou Facebook"
+            placeholder={t.placeholder}
             required
             disabled={envoi}
-            className="w-full rounded-lg border border-ink-700 bg-ink-850 py-2.5 pl-10 pr-4 text-sm text-mist-100 outline-none transition placeholder:text-mist-400 focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60"
+            className="w-full rounded-[var(--r-md)] border border-ink-700 bg-ink-850 py-2.5 pl-10 pr-4 text-sm text-mist-100 outline-none transition placeholder:text-mist-400 focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60"
           />
         </div>
         <button
@@ -76,22 +99,20 @@ export function AnalyzeForm() {
           {envoi ? (
             <>
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-mist-400/30 border-t-mist-200" />
-              Lancement...
+              {t.lancement}
             </>
           ) : (
-            "Analyser le lien"
+            t.analyser
           )}
         </button>
       </form>
 
       {erreur && (
-        <div className="mt-3 rounded-lg border border-rose-warn/30 bg-rose-warn/10 px-4 py-3 text-sm text-rose-warn">
-          {erreur}
-        </div>
+        <div className="mt-3 rounded-[var(--r-md)] border border-rose-warn/30 bg-rose-warn/10 px-4 py-3 text-sm text-rose-warn">{erreur}</div>
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-mist-400">
-        <span>Exemples :</span>
+        <span>{t.exemples}</span>
         {EXEMPLES.map((e) => (
           <button
             key={e.label}

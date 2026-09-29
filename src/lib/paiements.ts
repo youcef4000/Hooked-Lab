@@ -3,7 +3,7 @@ import path from "node:path";
 import { DATA_DIR, ensureDir } from "./paths";
 import { appliquerAbonnement } from "./comptes";
 import { journaliser } from "./codes";
-import { ENGAGEMENTS, PALIERS, RECHARGES, prixRecharge, totalPalier, type Devise } from "./tarifs";
+import { ENGAGEMENTS, PALIERS, RECHARGES, totalPalier, type Devise } from "./tarifs";
 
 /* ============================================================================
    Achats par carte : ce qu'on vend, et ce qu'on accorde une fois paye.
@@ -24,7 +24,7 @@ export interface Offre {
   libelle: string;
   description: string;
   montant: number;
-  devise: Exclude<Devise, "DZD">;
+  devise: Devise;
   credits: number;
   palier: string;
   dureeJours: number;
@@ -37,23 +37,24 @@ export function construireOffre(demande: {
   mois?: unknown;
   devise?: unknown;
 }): Offre | null {
-  const devise = demande.devise === "EUR" ? "EUR" : demande.devise === "USD" ? "USD" : null;
+  const devise =
+    demande.devise === "EUR" || demande.devise === "USD" || demande.devise === "GBP" ? demande.devise : null;
   if (!devise) return null;
 
   if (demande.type === "abonnement") {
     const p = PALIERS.find((x) => x.nom === demande.reference);
     const e = ENGAGEMENTS.find((x) => x.mois === Number(demande.mois));
     if (!p || !e) return null;
-    const montant = totalPalier(p, devise, e.remise, e.mois);
+    const montant = totalPalier(p, e.remise, e.mois);
     return {
       type: "abonnement",
-      libelle: `Hooked Lab ${p.nom} — ${e.mois === 1 ? "1 mois" : `${e.mois} mois`}`,
-      description: `${p.creditsMensuels * e.mois} crédits, accès ${e.mois * 30} jours`,
+      libelle: `Hooked Lab ${p.nom} — ${e.mois === 12 ? "yearly" : "monthly"}`,
+      description: `${p.creditsMensuels * e.mois} credits · ${e.mois === 12 ? "12 months" : "1 month"} access`,
       montant,
       devise,
       credits: p.creditsMensuels * e.mois,
       palier: p.nom,
-      dureeJours: e.mois * 30,
+      dureeJours: e.mois === 12 ? 365 : 30,
     };
   }
 
@@ -62,9 +63,9 @@ export function construireOffre(demande: {
     if (!r) return null;
     return {
       type: "recharge",
-      libelle: `Hooked Lab — recharge ${r.credits} crédits`,
-      description: `${r.credits} crédits ajoutés à ton compte`,
-      montant: prixRecharge(r, devise),
+      libelle: `Hooked Lab — ${r.credits} credits top-up`,
+      description: `${r.credits} credits added to your account`,
+      montant: r.prix,
       devise,
       credits: r.credits,
       palier: `Recharge ${r.credits}`,

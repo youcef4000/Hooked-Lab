@@ -3,6 +3,7 @@ import { construireOffre } from "@/lib/paiements";
 import { creerSessionPaiement, paiementCarteActif } from "@/lib/stripe";
 import { creerLimiteur, ipClient } from "@/lib/limiteur";
 import { urlSiteDepuis } from "@/lib/site";
+import { langueCourante } from "@/lib/langue-serveur";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,26 +13,30 @@ export const dynamic = "force-dynamic";
 const tropDeDemandes = creerLimiteur("paiement", 10 * 60_000, 15);
 
 export async function POST(requete: Request): Promise<Response> {
+  const fr = (await langueCourante()) === "fr";
+  const refus = (fr_: string, en: string, status: number) =>
+    Response.json({ ok: false, message: fr ? fr_ : en }, { status });
+
   if (!paiementCarteActif()) {
-    return Response.json({ ok: false, message: "Le paiement par carte n'est pas encore disponible." }, { status: 503 });
+    return refus("Le paiement par carte n'est pas encore disponible.", "Card payment isn't available yet.", 503);
   }
 
   const u = await utilisateurCourant();
-  if (!u) return Response.json({ ok: false, message: "Connecte-toi d'abord." }, { status: 401 });
+  if (!u) return refus("Connecte-toi d'abord.", "Please sign in first.", 401);
   if (tropDeDemandes(`${u.id}:${ipClient(requete)}`)) {
-    return Response.json({ ok: false, message: "Trop de tentatives. Réessaie dans quelques minutes." }, { status: 429 });
+    return refus("Trop de tentatives. Réessaie dans quelques minutes.", "Too many attempts. Try again in a few minutes.", 429);
   }
 
   let corps: Record<string, unknown>;
   try {
     corps = (await requete.json()) as Record<string, unknown>;
   } catch {
-    return Response.json({ ok: false, message: "Requête illisible." }, { status: 400 });
+    return refus("Requête illisible.", "Unreadable request.", 400);
   }
 
   // Le prix vient de la grille du serveur, jamais du navigateur.
   const offre = construireOffre(corps);
-  if (!offre) return Response.json({ ok: false, message: "Formule inconnue." }, { status: 422 });
+  if (!offre) return refus("Formule inconnue.", "Unknown plan.", 422);
 
   const base = urlSiteDepuis(requete.headers);
   try {
@@ -52,6 +57,12 @@ export async function POST(requete: Request): Promise<Response> {
     });
     return Response.json({ ok: true, url: session.url });
   } catch (err) {
-    return Response.json({ ok: false, message: (err as Error).message }, { status: 502 });
+    // Le detail technique reste dans les journaux du serveur.
+    console.error("[paiement] ouverture de session impossible :", (err as Error).message);
+    return refus(
+      "Le paiement par carte est momentanément indisponible. Réessaie dans un instant.",
+      "Card payment is temporarily unavailable. Please try again in a moment.",
+      502,
+    );
   }
 }

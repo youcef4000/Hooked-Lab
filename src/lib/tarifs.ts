@@ -3,37 +3,34 @@
 
    Construite a partir du cout reel mesure sur des analyses completes :
      analyse video  ~ 0,25 a 0,45 $ d'API (claude-sonnet-5 : 2 $ / 10 $ par
-                      million de tokens) — on planifie a 0,35 $
+                      million de tokens) — mesure : 0,25 $ ; on planifie a 0,35 $
      analyse image  ~ la meme chose ou presque : le rapport ecrit est aussi
                       long, seules les images en entree sont moins nombreuses
 
    Le cout depend du nombre d'images envoyees et de la longueur du rapport,
    presque pas de la duree de la video : une video de 10 s coute autant
-   qu'une video d'une minute. D'ou un tarif unique par video, plus simple
-   a comprendre pour le client.
+   qu'une video d'une minute. D'ou un tarif unique par video.
 
-   Deux grilles :
-   - Dinars (Algerie, BaridiMob / CCP, code d'activation). Parite de pouvoir
-     d'achat, marge ~40 a 50 % a consommation pleine au taux parallele.
-   - Dollars ou euros (carte bancaire, y compris RedotPay). Marge ~60 a 70 %
-     a consommation pleine, avant les frais de paiement (~3 %).
-
-   En pratique, un abonne consomme rarement tous ses credits : la marge
-   reelle est nettement superieure. Pas d'offre gratuite : elle serait videe
-   par des comptes jetables.
+   Une seule grille, en dollars, euros ou livres (meme chiffre) : c'est la
+   convention des logiciels vendus a l'international, et en Algerie aussi
+   on paie en devises (carte RedotPay, marche parallele). Marge ~60 a 70 %
+   a consommation pleine, avant frais de paiement (~3 %). En pratique, un
+   abonne consomme rarement tous ses credits.
    ========================================================================== */
 
-export type Devise = "DZD" | "EUR" | "USD";
+import { formatMontant } from "./marches";
+import type { Langue } from "./langue";
+
+export type Devise = "USD" | "EUR" | "GBP";
+export const DEVISES: Devise[] = ["USD", "EUR", "GBP"];
 
 export interface Palier {
   nom: string;
   creditsMensuels: number;
-  /** Prix mensuel sans engagement, en dinars. */
-  base: number;
-  /** Prix mensuel sans engagement, en dollars ou en euros (meme chiffre). */
-  baseInternational: number;
-  cible: string;
-  avantages: string[];
+  /** Prix mensuel sans engagement, identique en $, € et £. */
+  prix: number;
+  cible: Record<Langue, string>;
+  avantages: Record<Langue, string[]>;
   populaire?: boolean;
 }
 
@@ -53,73 +50,82 @@ export const COUT_CREDITS = {
  */
 export const PALIERS: Palier[] = [
   {
-    nom: "Essentiel",
+    nom: "Starter",
     creditsMensuels: 45,
-    base: 2900,
-    baseInternational: 19,
-    cible: "Pour tester des produits en solo",
-    avantages: [
-      "15 analyses vidéo par mois",
-      "Rapport complet, sourcing et rentabilité",
-      "Annonces en français et en arabe",
-      "Historique illimité",
-    ],
+    prix: 19,
+    cible: { fr: "Pour tester des produits en solo", en: "For testing products on your own" },
+    avantages: {
+      fr: [
+        "15 analyses vidéo par mois",
+        "Rapport complet : script, angles, sourcing, rentabilité",
+        "Annonces Meta prêtes à coller, variante B incluse",
+        "6 marchés : US, UK, Europe, France, Australie, Algérie",
+      ],
+      en: [
+        "15 video analyses per month",
+        "Full report: script, angles, sourcing, profitability",
+        "Ready-to-paste Meta ads, variant B included",
+        "6 markets: US, UK, Europe, France, Australia, Algeria",
+      ],
+    },
   },
   {
     nom: "Pro",
     creditsMensuels: 150,
-    base: 7900,
-    baseInternational: 49,
-    cible: "Pour un e-commerçant qui scale",
+    prix: 49,
     populaire: true,
-    avantages: [
-      "50 analyses vidéo par mois",
-      "Tout l'Essentiel",
-      "Plusieurs analyses lancées à la suite",
-      "Support prioritaire sur WhatsApp",
-    ],
+    cible: { fr: "Pour un e-commerçant qui scale", en: "For a store that is scaling" },
+    avantages: {
+      fr: [
+        "50 analyses vidéo par mois",
+        "Tout le Starter",
+        "Plusieurs analyses lancées à la suite",
+        "Support prioritaire sur WhatsApp",
+      ],
+      en: [
+        "50 video analyses per month",
+        "Everything in Starter",
+        "Queue several analyses in a row",
+        "Priority support on WhatsApp",
+      ],
+    },
   },
   {
-    nom: "Agence",
+    nom: "Agency",
     creditsMensuels: 420,
-    base: 19900,
-    baseInternational: 129,
-    cible: "Pour les media buyers et agences",
-    avantages: [
-      "140 analyses vidéo par mois",
-      "Tout le Pro",
-      "Un compte utilisable par toute ton équipe",
-      "Accompagnement au démarrage par téléphone",
-    ],
+    prix: 129,
+    cible: { fr: "Pour les media buyers et agences", en: "For media buyers and agencies" },
+    avantages: {
+      fr: [
+        "140 analyses vidéo par mois",
+        "Tout le Pro",
+        "Un compte utilisable par toute ton équipe",
+        "Onboarding personnalisé",
+      ],
+      en: [
+        "140 video analyses per month",
+        "Everything in Pro",
+        "One account for your whole team",
+        "Personal onboarding",
+      ],
+    },
   },
 ];
 
-/**
- * Remises par duree d'engagement. Plus de mois de credits offerts : cumules
- * a la remise, ils faisaient passer l'engagement d'un an sous le cout reel.
- */
+/** Mensuel ou annuel : les deux choix que tout le monde comprend. */
 export const ENGAGEMENTS = [
-  { mois: 1, libelle: "Mensuel", remise: 0, moisBonus: 0 },
-  { mois: 6, libelle: "6 mois", remise: 0.1, moisBonus: 0 },
-  { mois: 12, libelle: "1 an", remise: 0.2, moisBonus: 0 },
+  { mois: 1, libelle: { fr: "Mensuel", en: "Monthly" }, remise: 0 },
+  { mois: 12, libelle: { fr: "Annuel", en: "Yearly" }, remise: 0.2 },
 ] as const;
 
-/** Credits offerts en une fois a la souscription (aucun dans la grille actuelle). */
-export function creditsBonus(creditsMensuels: number, moisBonus: number): number {
-  return creditsMensuels * moisBonus;
+/** Prix mensuel d'un palier, remise d'engagement comprise (arrondi a l'unite). */
+export function prixPalier(p: Palier, remise: number): number {
+  return Math.round(p.prix * (1 - remise));
 }
 
-/** Arrondit a la centaine de dinars la plus proche : un prix se lit mieux. */
-function arrondir(montant: number): number {
-  return Math.round(montant / 100) * 100;
-}
-
-export function prixMensuelAvecRemise(base: number, remise: number): number {
-  return arrondir(base * (1 - remise));
-}
-
-export function prixTotalEngagement(base: number, remise: number, mois: number): number {
-  return arrondir(base * (1 - remise)) * mois;
+/** Montant total paye d'avance pour la duree d'engagement. */
+export function totalPalier(p: Palier, remise: number, mois: number): number {
+  return prixPalier(p, remise) * mois;
 }
 
 /**
@@ -128,48 +134,31 @@ export function prixTotalEngagement(base: number, remise: number, mois: number):
  * elle ne doit pas devenir une facon de contourner l'abonnement.
  */
 export const RECHARGES = [
-  { credits: 15, prix: 1500, prixInternational: 9, libelle: "Dépannage" },
-  { credits: 45, prix: 3900, prixInternational: 24, libelle: "Le plus pris", populaire: true },
-  { credits: 120, prix: 8900, prixInternational: 55, libelle: "Grosse campagne" },
+  { credits: 15, prix: 9, libelle: { fr: "Dépannage", en: "Quick top-up" } },
+  { credits: 45, prix: 24, libelle: { fr: "Le plus pris", en: "Most popular" }, populaire: true },
+  { credits: 120, prix: 55, libelle: { fr: "Grosse campagne", en: "Big campaign" } },
 ] as const;
 
-export function prixParCredit(prix: number, credits: number): number {
-  return Math.round(prix / credits);
-}
+export type Recharge = (typeof RECHARGES)[number];
 
-/* --------------------------------------------------------- multi-devises */
-
-/** Prix mensuel d'un palier dans une devise, remise d'engagement comprise. */
-export function prixPalier(p: Palier, devise: Devise, remise: number): number {
-  if (devise === "DZD") return prixMensuelAvecRemise(p.base, remise);
-  return Math.round(p.baseInternational * (1 - remise));
-}
-
-/** Montant total paye d'avance pour la duree d'engagement. */
-export function totalPalier(p: Palier, devise: Devise, remise: number, mois: number): number {
-  return prixPalier(p, devise, remise) * mois;
-}
-
-export function prixRecharge(r: (typeof RECHARGES)[number], devise: Devise): number {
-  return devise === "DZD" ? r.prix : r.prixInternational;
-}
-
-/** "2 900 DA", "19 $", "19 €" — la forme que le client attend dans sa devise. */
-export function formatPrix(montant: number, devise: Devise): string {
-  const n = montant.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
-  if (devise === "DZD") return `${n} DA`;
-  return devise === "EUR" ? `${n} €` : `${n} $`;
+/** "19 $", "$19", "19 €", "£19" selon la devise et la langue. */
+export function formatPrix(montant: number, devise: Devise, langue: Langue = "fr"): string {
+  return formatMontant(montant, devise, langue);
 }
 
 /** Prix d'un credit, pour comparer les formules entre elles. */
-export function formatPrixCredit(montant: number, credits: number, devise: Devise): string {
-  const unitaire = montant / credits;
-  if (devise === "DZD") return `${Math.round(unitaire)} DA`;
-  const n = unitaire.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return devise === "EUR" ? `${n} €` : `${n} $`;
+export function formatPrixCredit(montant: number, credits: number, devise: Devise, langue: Langue = "fr"): string {
+  const unitaire = Math.round((montant / credits) * 100) / 100;
+  return formatMontant(unitaire, devise, langue);
 }
 
 /** Nombre d'analyses video que permet un volume de credits. */
 export function videosPour(credits: number): number {
   return Math.floor(credits / COUT_CREDITS.video);
+}
+
+/** Prix d'entree affiche en accroche : le moins cher, a la meilleure remise. */
+export function prixPlancher(): number {
+  const remiseMax = Math.max(...ENGAGEMENTS.map((e) => e.remise));
+  return Math.min(...PALIERS.map((p) => prixPalier(p, remiseMax)));
 }

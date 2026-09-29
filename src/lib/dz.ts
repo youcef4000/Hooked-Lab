@@ -1,4 +1,5 @@
 import type { EstimationPrix, RentabiliteCOD } from "@/types/analysis";
+import { marche as trouverMarche, tauxDepuisUsd, type DeviseMarche, type MarcheId } from "./marches";
 
 /* ============================================================================
    Constantes du marche algerien.
@@ -40,13 +41,24 @@ export const MARCHE_DZ = {
   tauxPlateforme: 0,
 } as const;
 
+export interface CoutsProduction {
+  soiMeme: number;
+  ugcDebutant: number;
+  ugcConfirme: number;
+  studio: number;
+}
+
+/** Cout indicatif de production d'une creative, dans chaque devise. */
+export const COUTS_PRODUCTION_DEVISE: Record<DeviseMarche, CoutsProduction> = {
+  DZD: { soiMeme: 0, ugcDebutant: 3000, ugcConfirme: 8000, studio: 20000 },
+  USD: { soiMeme: 0, ugcDebutant: 150, ugcConfirme: 400, studio: 1200 },
+  EUR: { soiMeme: 0, ugcDebutant: 140, ugcConfirme: 370, studio: 1100 },
+  GBP: { soiMeme: 0, ugcDebutant: 120, ugcConfirme: 320, studio: 950 },
+  AUD: { soiMeme: 0, ugcDebutant: 220, ugcConfirme: 600, studio: 1800 },
+};
+
 /** Cout indicatif de production d'une creative, en DZD. */
-export const COUTS_PRODUCTION = {
-  soiMeme: 0,
-  ugcDebutant: 3000,
-  ugcConfirme: 8000,
-  studio: 20000,
-} as const;
+export const COUTS_PRODUCTION = COUTS_PRODUCTION_DEVISE.DZD;
 
 export const WILAYAS_SURCOUT = [
   "Adrar",
@@ -260,6 +272,85 @@ export function paramsParDefaut(estimation: EstimationPrix, tauxChange: number):
     cout_par_lead_dzd: MARCHE_DZ.coutParLead,
     cout_confirmation_dzd: MARCHE_DZ.coutConfirmation,
     cout_production_creatives_dzd: COUTS_PRODUCTION.ugcDebutant,
+    commandes_amortissement: 100,
+  };
+}
+
+/* ============================================================================
+   Parametres de depart pour les marches a paiement d'avance.
+
+   Le meme modele de calcul sert partout : prospects -> confirmation ->
+   livraison -> retours. Pour un marche paye d'avance, il n'y a pas d'appel
+   de confirmation (taux 1, cout 0), et "retournee" designe une commande
+   remboursee ou perdue : son cout est la marchandise et le port, perdus.
+
+   NB : les champs suffixes _dzd portent le nom historique du modele algerien,
+   mais sont exprimes dans la DEVISE DU MARCHE du rapport ($, €, £, A$...).
+   ========================================================================== */
+
+interface DefautsPrepaye {
+  /** Droits, TVA ou GST a l'import, en part de la valeur. */
+  taxeImport: number;
+  /** Part des commandes remboursees, perdues ou contestees. */
+  tauxRemboursement: number;
+  /** Frais de paiement et d'abonnements boutique, en part du CA. */
+  fraisPlateforme: number;
+}
+
+const DEFAUTS_PREPAYE: Record<Exclude<MarcheId, "dz">, DefautsPrepaye> = {
+  us: { taxeImport: 0.15, tauxRemboursement: 0.05, fraisPlateforme: 0.05 },
+  uk: { taxeImport: 0.2, tauxRemboursement: 0.06, fraisPlateforme: 0.05 },
+  fr: { taxeImport: 0.2, tauxRemboursement: 0.07, fraisPlateforme: 0.05 },
+  eu: { taxeImport: 0.21, tauxRemboursement: 0.08, fraisPlateforme: 0.05 },
+  au: { taxeImport: 0.1, tauxRemboursement: 0.06, fraisPlateforme: 0.05 },
+};
+
+/** Parametres de depart d'un rapport, selon le marche vise. */
+export function paramsParDefautMarche(estimation: EstimationPrix, marcheId: MarcheId): ParamsCOD {
+  const m = trouverMarche(marcheId);
+  const change = tauxDepuisUsd(m.devise);
+  if (m.modele === "cod") return paramsParDefaut(estimation, change);
+
+  const d = DEFAUTS_PREPAYE[m.id as Exclude<MarcheId, "dz">];
+  const moyenne = (a: number, b: number) => (Number(a) + Number(b)) / 2;
+  const coutUsdBrut = moyenne(estimation.prix_achat_unitaire_usd_min, estimation.prix_achat_unitaire_usd_max);
+  const fretBrut = moyenne(estimation.frais_port_unitaire_usd_min, estimation.frais_port_unitaire_usd_max);
+  const coutUsd = Number.isFinite(coutUsdBrut) && coutUsdBrut > 0 ? round(coutUsdBrut) : 3;
+  const fretUsd = Number.isFinite(fretBrut) && fretBrut >= 0 ? round(fretBrut) : 4;
+
+  const prixBrut = moyenne(estimation.prix_vente_dz_dzd_min, estimation.prix_vente_dz_dzd_max);
+  // Garde-fou : si le modele a donne un prix incoherent, 3x le cout rendu.
+  const renduLocal = (coutUsd + fretUsd) * change * (1 + d.taxeImport);
+  const prixVente =
+    Number.isFinite(prixBrut) && prixBrut > renduLocal ? Math.round(prixBrut) : Math.round(renduLocal * 3);
+
+  return {
+    mode_approvisionnement: "import",
+    cout_produit_usd: coutUsd,
+    // En dropshipping, le port Chine -> client final est deja dans le fret.
+    fret_unitaire_usd: fretUsd,
+    taux_change: change,
+    taux_douane_pct: d.taxeImport,
+    frais_transit_dzd: 0,
+    prix_achat_local_dzd: Math.round(renduLocal * 1.6),
+    taux_casse_pct: 0.02,
+
+    prix_vente_dzd: prixVente,
+    taux_plateforme_pct: d.fraisPlateforme,
+
+    frais_livraison_dzd: 0,
+    part_stopdesk: 0,
+    taux_confirmation: 1,
+    taux_livraison: 1 - d.tauxRemboursement,
+    // Une commande remboursee coute la marchandise et le port, deja partis.
+    cout_retour_dzd: Math.round(renduLocal),
+    frais_emballage_dzd: 0,
+
+    // Sans confirmation, un "prospect" est une commande : c'est le cout
+    // d'acquisition par achat, estime a 30 % du prix de vente pour un test.
+    cout_par_lead_dzd: Math.round(prixVente * 0.3),
+    cout_confirmation_dzd: 0,
+    cout_production_creatives_dzd: COUTS_PRODUCTION_DEVISE[m.devise].ugcDebutant,
     commandes_amortissement: 100,
   };
 }

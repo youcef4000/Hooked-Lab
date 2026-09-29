@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useLangue } from "./Langue";
 
-export function CopyButton({ texte, label = "Copier" }: { texte: string; label?: string }) {
+export function CopyButton({ texte, label }: { texte: string; label?: string }) {
+  const fr = useLangue() === "fr";
   const [copie, setCopie] = useState(false);
 
   async function copier() {
@@ -33,7 +35,7 @@ export function CopyButton({ texte, label = "Copier" }: { texte: string; label?:
           <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-brand-400" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Copie
+          {fr ? "Copié" : "Copied"}
         </>
       ) : (
         <>
@@ -41,7 +43,7 @@ export function CopyButton({ texte, label = "Copier" }: { texte: string; label?:
             <rect x="9" y="9" width="11" height="11" rx="2" />
             <path d="M5 15V5a2 2 0 0 1 2-2h8" />
           </svg>
-          {label}
+          {label ?? (fr ? "Copier" : "Copy")}
         </>
       )}
     </button>

@@ -3,6 +3,7 @@
 import { Badge, Card, Liste, Section, Stat } from "../ui";
 import { CopyButton } from "../CopyButton";
 import { RECHERCHE_PAR_IMAGE } from "@/lib/sourcing";
+import { useRapport } from "./contexte";
 import type { LienSourcing, Report } from "@/types/analysis";
 
 const COULEURS: Record<LienSourcing["plateforme"], string> = {
@@ -17,6 +18,10 @@ const COULEURS: Record<LienSourcing["plateforme"], string> = {
 export function SourcingTab({ report }: { report: Report }) {
   const { sourcing, media, id } = report;
   const est = sourcing.estimation;
+  const { fr, fmt, langue, pays } = useRapport();
+  const fiab: Record<string, string> = fr
+    ? { faible: "faible", moyenne: "moyenne", bonne: "bonne" }
+    : { faible: "low", moyenne: "medium", bonne: "good" };
 
   const parPlateforme = sourcing.liens.reduce<Record<string, LienSourcing[]>>((acc, l) => {
     (acc[l.plateforme] ??= []).push(l);
@@ -26,41 +31,52 @@ export function SourcingTab({ report }: { report: Report }) {
   return (
     <div>
       <Section
-        titre="Estimation des coûts"
-        soustitre={`Fiabilité : ${est.fiabilite}. Ce sont des ordres de grandeur, à confirmer auprès des fournisseurs.`}
+        titre={fr ? "Estimation des coûts" : "Cost estimate"}
+        soustitre={
+          fr
+            ? `Fiabilité : ${fiab[est.fiabilite] ?? est.fiabilite}. Ce sont des ordres de grandeur, à confirmer auprès des fournisseurs.`
+            : `Reliability: ${fiab[est.fiabilite] ?? est.fiabilite}. These are ballpark figures, to confirm with suppliers.`
+        }
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat
-            label="Prix d'achat unitaire"
-            valeur={`${est.prix_achat_unitaire_usd_min.toFixed(2)} – ${est.prix_achat_unitaire_usd_max.toFixed(2)} $`}
-          />
-          <Stat label="MOQ typique" valeur={`${Math.round(est.moq_estime)} pièces`} />
-          <Stat
-            label="Fret unitaire vers DZ"
-            valeur={`${est.frais_port_unitaire_usd_min.toFixed(2)} – ${est.frais_port_unitaire_usd_max.toFixed(2)} $`}
+            label={fr ? "Prix d'achat unitaire" : "Unit purchase price"}
+            valeur={`$${est.prix_achat_unitaire_usd_min.toFixed(2)} – $${est.prix_achat_unitaire_usd_max.toFixed(2)}`}
           />
           <Stat
-            label="Prix de vente en Algérie"
-            valeur={`${Math.round(est.prix_vente_dz_dzd_min).toLocaleString("fr-FR")} – ${Math.round(est.prix_vente_dz_dzd_max).toLocaleString("fr-FR")} DA`}
+            label={fr ? "MOQ typique" : "Typical MOQ"}
+            valeur={`${Math.round(est.moq_estime)} ${fr ? "pièces" : "units"}`}
+          />
+          <Stat
+            label={fr ? `Fret unitaire : ${pays}` : `Unit shipping to ${pays}`}
+            valeur={`$${est.frais_port_unitaire_usd_min.toFixed(2)} – $${est.frais_port_unitaire_usd_max.toFixed(2)}`}
+          />
+          <Stat
+            label={fr ? `Prix de vente : ${pays}` : `Retail price in ${pays}`}
+            valeur={`${fmt(est.prix_vente_dz_dzd_min)} – ${fmt(est.prix_vente_dz_dzd_max)}`}
             tone="vert"
           />
         </div>
         <Card className="mt-3 p-5">
           <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-mist-400">
-            Hypothèses retenues
+            {fr ? "Hypothèses retenues" : "Assumptions"}
           </h4>
           <Liste items={est.hypotheses} />
         </Card>
       </Section>
 
       <Section
-        titre="Requêtes fournisseurs"
-        soustitre="Les requêtes en chinois donnent des prix nettement plus bas sur 1688 et Taobao."
+        titre={fr ? "Requêtes fournisseurs" : "Supplier search queries"}
+        soustitre={
+          fr
+            ? "Les requêtes en chinois donnent des prix nettement plus bas sur 1688 et Taobao."
+            : "Chinese queries return much lower prices on 1688 and Taobao."
+        }
       >
         <div className="grid gap-3 md:grid-cols-2">
           <Card className="p-5">
             <div className="mb-2.5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-mist-100">En anglais</h3>
+              <h3 className="text-sm font-semibold text-mist-100">{fr ? "En anglais" : "In English"}</h3>
               <CopyButton texte={sourcing.requetes.en.join("\n")} />
             </div>
             <div className="space-y-1.5">
@@ -78,7 +94,7 @@ export function SourcingTab({ report }: { report: Report }) {
 
           <Card className="p-5">
             <div className="mb-2.5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-mist-100">En chinois</h3>
+              <h3 className="text-sm font-semibold text-mist-100">{fr ? "En chinois" : "In Chinese"}</h3>
               <CopyButton texte={[...sourcing.requetes.zh, ...sourcing.requetes.alias_zh].join("\n")} />
             </div>
             <div className="space-y-1.5">
@@ -97,8 +113,12 @@ export function SourcingTab({ report }: { report: Report }) {
       </Section>
 
       <Section
-        titre="Liens de recherche directs"
-        soustitre="Chaque lien ouvre la recherche correspondante sur le site du fournisseur."
+        titre={fr ? "Liens de recherche directs" : "Direct search links"}
+        soustitre={
+          fr
+            ? "Chaque lien ouvre la recherche correspondante sur le site du fournisseur."
+            : "Each link opens the matching search on the supplier's site."
+        }
       >
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {Object.entries(parPlateforme).map(([plateforme, liens]) => (
@@ -138,8 +158,12 @@ export function SourcingTab({ report }: { report: Report }) {
       </Section>
 
       <Section
-        titre="Recherche par image"
-        soustitre="La méthode la plus fiable pour retrouver exactement le produit vu dans la vidéo."
+        titre={fr ? "Recherche par image" : "Image search"}
+        soustitre={
+          fr
+            ? "La méthode la plus fiable pour retrouver exactement le produit vu dans la vidéo."
+            : "The most reliable way to find the exact product seen in the video."
+        }
       >
         <Card className="p-5">
           <div className="mb-4 flex flex-wrap gap-2">
@@ -149,7 +173,7 @@ export function SourcingTab({ report }: { report: Report }) {
                 href={`/api/media/${id}/${f.file}`}
                 download={`keyframe-${i}.jpg`}
                 className="group relative h-24 w-16 overflow-hidden rounded-md ring-1 ring-ink-800 transition hover:ring-brand-500/60"
-                title="Télécharger cette image"
+                title={fr ? "Télécharger cette image" : "Download this frame"}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -159,7 +183,7 @@ export function SourcingTab({ report }: { report: Report }) {
                   loading="lazy"
                 />
                 <span className="absolute inset-x-0 bottom-0 bg-ink-950/80 py-0.5 text-center text-[9px] text-mist-200 opacity-0 transition group-hover:opacity-100">
-                  télécharger
+                  {fr ? "télécharger" : "download"}
                 </span>
               </a>
             ))}
@@ -177,7 +201,7 @@ export function SourcingTab({ report }: { report: Report }) {
                   >
                     {r.url}
                   </a>
-                  <p className="mt-0.5 text-xs leading-relaxed text-mist-400">{r.aide}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-mist-400">{r.aide[langue]}</p>
                 </div>
               </li>
             ))}
@@ -187,11 +211,13 @@ export function SourcingTab({ report }: { report: Report }) {
 
       <div className="grid gap-3 md:grid-cols-2">
         <Card className="p-5">
-          <h3 className="mb-3 text-sm font-semibold text-brand-300">Negocier avec le fournisseur</h3>
+          <h3 className="mb-3 text-sm font-semibold text-brand-300">
+            {fr ? "Négocier avec le fournisseur" : "Negotiating with the supplier"}
+          </h3>
           <Liste items={sourcing.conseils_negociation} tone="vert" />
         </Card>
         <Card className="p-5">
-          <h3 className="mb-3 text-sm font-semibold text-amber-glow">Risques a l&apos;import</h3>
+          <h3 className="mb-3 text-sm font-semibold text-amber-glow">{fr ? "Risques à l'import" : "Import risks"}</h3>
           <Liste items={sourcing.risques_import} tone="rouge" />
         </Card>
       </div>

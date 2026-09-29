@@ -1,6 +1,7 @@
 import { activerCode, journaliser } from "@/lib/codes";
 import { trouverParId, versPublic } from "@/lib/comptes";
 import { utilisateurCourant } from "@/lib/session";
+import { langueCourante } from "@/lib/langue-serveur";
 
 /* Saisie d'un code d'activation par un abonne. */
 
@@ -26,14 +27,17 @@ function tropDEssais(cle: string): boolean {
 }
 
 export async function POST(requete: Request): Promise<Response> {
+  const fr = (await langueCourante()) === "fr";
   const u = await utilisateurCourant();
-  if (!u) return Response.json({ ok: false, message: "Connecte-toi d'abord." }, { status: 401 });
+  if (!u) {
+    return Response.json({ ok: false, message: fr ? "Connecte-toi d'abord." : "Please sign in first." }, { status: 401 });
+  }
 
   // Le comptage est par compte, pas par adresse IP : plusieurs abonnes
   // peuvent partager une connexion, et l'un ne doit pas bloquer l'autre.
   if (tropDEssais(u.id)) {
     return Response.json(
-      { ok: false, message: "Trop de tentatives. Réessaie dans dix minutes." },
+      { ok: false, message: fr ? "Trop de tentatives. Réessaie dans dix minutes." : "Too many attempts. Try again in ten minutes." },
       { status: 429 },
     );
   }
@@ -42,10 +46,10 @@ export async function POST(requete: Request): Promise<Response> {
   try {
     corps = (await requete.json()) as typeof corps;
   } catch {
-    return Response.json({ ok: false, message: "Requête illisible." }, { status: 400 });
+    return Response.json({ ok: false, message: fr ? "Requête illisible." : "Unreadable request." }, { status: 400 });
   }
 
-  const resultat = activerCode(String(corps.code ?? ""), u.id);
+  const resultat = activerCode(String(corps.code ?? ""), u.id, fr ? "fr" : "en");
   if (!resultat.ok) {
     return Response.json({ ok: false, message: resultat.message }, { status: 422 });
   }

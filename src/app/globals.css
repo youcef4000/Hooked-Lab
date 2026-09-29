@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Drapeaux : Windows n'affiche pas les emojis de drapeaux (il montre "US",
+   "FR"...). Cette police ne couvre que les caracteres de drapeaux
+   (unicode-range) : elle n'est telechargee que si un drapeau s'affiche, et
+   ne touche a aucun autre caractere. Dessins Twemoji, licence CC-BY 4.0 :
+   voir public/fonts/LICENSE-TwemojiCountryFlags.md. */
+@font-face {
+  font-family: "Twemoji Country Flags";
+  unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E0063, U+E0065, U+E0067, U+E006C, U+E006E, U+E0073-E0074, U+E0077, U+E007F;
+  src: url("/fonts/TwemojiCountryFlags.woff2") format("woff2");
+  font-display: swap;
+}
+
 /* ============================================================
    Theme "or sur noir" — registre premium, volontairement a
    l'oppose du violet/bleu/rose devenu la signature des sites IA.
@@ -41,8 +53,8 @@
   --color-amber-glow: #e08c3a;
   --color-rose-warn: #c9553d;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-figtree), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-sans: "Twemoji Country Flags", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Twemoji Country Flags", var(--font-figtree), var(--font-inter), ui-sans-serif, sans-serif;
 
   /* --------------------------------------------------------------
      Rayons — une seule valeur declinee, jamais de rayon arbitraire.
@@ -88,6 +100,12 @@ h1,
 h2 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+}
+
+/* Pas de mot orphelin en fin de titre ("...qu'un test / raté"). */
+h2,
+h3 {
+  text-wrap: balance;
 }
 
 /* --------------------------------------------------------------
@@ -696,5 +714,24 @@ h2 {
   }
   .barre-mobile {
     transition: none;
+  }
+}
+
+/* Section des marches : progression du defilement automatique (scale seul). */
+@keyframes barre-marche {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.barre-marche {
+  animation: barre-marche 3.8s linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .barre-marche {
+    animation: none;
+    display: none;
   }
 }

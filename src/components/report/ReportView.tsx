@@ -9,6 +9,10 @@ import { SourcingTab } from "./SourcingTab";
 import { ProfitTab } from "./ProfitTab";
 import { LaunchTab } from "./LaunchTab";
 import { PartageResume } from "./PartageResume";
+import { RapportProvider, niveauProduction, nomPlateforme } from "./contexte";
+import { useLangue } from "../Langue";
+import { locale } from "@/lib/langue";
+import { marche as trouverMarche } from "@/lib/marches";
 import type { Report } from "@/types/analysis";
 
 /**
@@ -18,37 +22,37 @@ import type { Report } from "@/types/analysis";
 const ONGLETS = [
   {
     id: "apercu",
-    label: "Vue d'ensemble",
+    label: { fr: "Vue d'ensemble", en: "Overview" },
     actif: "bg-[#d4af37] text-[#120e04] shadow-lg shadow-[#d4af37]/25",
     repos: "bg-[#d4af37]/12 text-[#f2dfa0] ring-1 ring-inset ring-[#d4af37]/30 hover:bg-[#d4af37]/22",
   },
   {
     id: "script",
-    label: "Script et séquences",
+    label: { fr: "Script et séquences", en: "Script & sequences" },
     actif: "bg-[#c9a227] text-[#120e04] shadow-lg shadow-[#c9a227]/25",
     repos: "bg-[#c9a227]/12 text-[#e0be55] ring-1 ring-inset ring-[#c9a227]/30 hover:bg-[#c9a227]/22",
   },
   {
     id: "angles",
-    label: "Angles et mots-clés",
+    label: { fr: "Angles et mots-clés", en: "Angles & keywords" },
     actif: "bg-[#b87333] text-[#120e04] shadow-lg shadow-[#b87333]/25",
     repos: "bg-[#b87333]/12 text-[#d99457] ring-1 ring-inset ring-[#b87333]/30 hover:bg-[#b87333]/22",
   },
   {
     id: "sourcing",
-    label: "Sourcing",
+    label: { fr: "Sourcing", en: "Sourcing" },
     actif: "bg-[#e08c3a] text-[#120e04] shadow-lg shadow-[#e08c3a]/25",
     repos: "bg-[#e08c3a]/12 text-[#eda86a] ring-1 ring-inset ring-[#e08c3a]/30 hover:bg-[#e08c3a]/22",
   },
   {
     id: "rentabilite",
-    label: "Rentabilité COD",
+    label: { fr: "Rentabilité", en: "Profitability" },
     actif: "bg-[#3f7d6b] text-white shadow-lg shadow-[#3f7d6b]/25",
     repos: "bg-[#3f7d6b]/12 text-[#6fb5a1] ring-1 ring-inset ring-[#3f7d6b]/30 hover:bg-[#3f7d6b]/22",
   },
   {
     id: "lancement",
-    label: "Pack de lancement",
+    label: { fr: "Pack de lancement", en: "Launch pack" },
     actif: "bg-[#f2dfa0] text-[#120e04] shadow-lg shadow-[#f2dfa0]/25",
     repos: "bg-[#f2dfa0]/12 text-[#cdb98a] ring-1 ring-inset ring-[#f2dfa0]/30 hover:bg-[#f2dfa0]/22",
   },
@@ -70,8 +74,13 @@ export function ReportView({
 }) {
   const [onglet, setOnglet] = useState<OngletId>("apercu");
   const { creative, source, dz } = report;
+  const langue = useLangue();
+  const fr = langue === "fr";
+  const loc = locale(langue);
+  const m = trouverMarche(report.marche);
 
   return (
+    <RapportProvider marcheId={report.marche}>
     <div>
       {/* En-tete ------------------------------------------------------- */}
       <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-start">
@@ -102,14 +111,17 @@ export function ReportView({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge tone="bleu">{source.platform}</Badge>
+            <Badge tone="bleu">{nomPlateforme(source.platform, fr)}</Badge>
+            <Badge tone="neutre">
+              {m.drapeau} {m.nom[langue]}
+            </Badge>
             <Badge tone={scoreTone(dz.score.global_sur_100)}>
-              Potentiel DZ {dz.score.global_sur_100}/100
+              {fr ? "Potentiel" : "Potential"} {dz.score.global_sur_100}/100
             </Badge>
             {source.dureeSecondes > 0 && <Badge tone="neutre">{Math.round(source.dureeSecondes)} s</Badge>}
-            <Badge tone="neutre">{creative.structure.ugc_ou_pro.toUpperCase()}</Badge>
+            <Badge tone="neutre">{niveauProduction(creative.structure.ugc_ou_pro, fr)}</Badge>
             {creative.produit.confiance < 0.6 && (
-              <Badge tone="ambre">Produit identifié avec doute</Badge>
+              <Badge tone="ambre">{fr ? "Produit identifié avec doute" : "Product identified with doubt"}</Badge>
             )}
           </div>
 
@@ -123,24 +135,23 @@ export function ReportView({
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-mist-400">
-            {source.auteur && <span>Compte : {source.auteur}</span>}
-            {source.vues != null && <span>{source.vues.toLocaleString("fr-FR")} vues</span>}
-            {source.likes != null && <span>{source.likes.toLocaleString("fr-FR")} likes</span>}
+            {source.auteur && <span>{fr ? "Compte :" : "Account:"} {source.auteur}</span>}
+            {source.vues != null && <span>{source.vues.toLocaleString(loc)} {fr ? "vues" : "views"}</span>}
+            {source.likes != null && <span>{source.likes.toLocaleString(loc)} likes</span>}
             {source.commentaires != null && (
-              <span>{source.commentaires.toLocaleString("fr-FR")} commentaires</span>
+              <span>{source.commentaires.toLocaleString(loc)} {fr ? "commentaires" : "comments"}</span>
             )}
-            {/* Un fichier depose n'a pas d'URL d'origine : pas de lien mort. */}
-            {report.url.startsWith("http") ? (
+            {/* Un fichier depose n'a pas d'URL d'origine : pas de lien mort, et le
+                badge "Video deposee" le dit deja. */}
+            {report.url.startsWith("http") && (
               <a
                 href={report.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-400 hover:text-brand-300"
               >
-                Voir le post d&apos;origine
+                {fr ? "Voir le post d'origine" : "See the original post"}
               </a>
-            ) : (
-              <span>Fichier déposé</span>
             )}
           </div>
 
@@ -158,7 +169,7 @@ export function ReportView({
                 download={`audio-${report.id}.mp3`}
                 className="rounded-md border border-ink-700 bg-ink-800 px-3 py-1.5 text-xs text-mist-300 transition hover:text-mist-100"
               >
-                Télécharger l&apos;audio
+                {fr ? "Télécharger l'audio" : "Download audio"}
               </a>
             </div>
           )}
@@ -168,7 +179,7 @@ export function ReportView({
       {proprietaire && report.avertissements.length > 0 && (
         <div className="mb-6 rounded-xl border border-amber-glow/25 bg-amber-glow/[0.07] px-4 py-3">
           <p className="text-xs font-medium uppercase tracking-wide text-amber-glow">
-            Limites de cette analyse
+            {fr ? "Limites de cette analyse" : "Limits of this analysis"}
           </p>
           <ul className="mt-1.5 space-y-1">
             {report.avertissements.map((a, i) => (
@@ -191,7 +202,7 @@ export function ReportView({
                 onglet === o.id ? o.actif : o.repos
               }`}
             >
-              {o.label}
+              {o.label[langue]}
             </button>
           ))}
         </div>
@@ -209,16 +220,17 @@ export function ReportView({
 
       {proprietaire && report.cout_ia && (
         <p className="mt-10 text-center text-[11px] text-mist-400">
-          Analyse produite le{" "}
-          {new Date(report.createdAt).toLocaleString("fr-FR", {
+          {fr ? "Analyse produite le" : "Analysis produced on"}{" "}
+          {new Date(report.createdAt).toLocaleString(loc, {
             dateStyle: "long",
             timeStyle: "short",
           })}{" "}
-          — {report.cout_ia.input_tokens.toLocaleString("fr-FR")} tokens en entree,{" "}
-          {report.cout_ia.output_tokens.toLocaleString("fr-FR")} en sortie, cout estime{" "}
-          {report.cout_ia.usd_estime.toFixed(3)} $
+          — {report.cout_ia.input_tokens.toLocaleString(loc)} {fr ? "tokens en entrée" : "input tokens"},{" "}
+          {report.cout_ia.output_tokens.toLocaleString(loc)} {fr ? "en sortie, coût estimé" : "output, estimated cost"}{" "}
+          ${report.cout_ia.usd_estime.toFixed(3)}
         </p>
       )}
     </div>
+    </RapportProvider>
   );
 }

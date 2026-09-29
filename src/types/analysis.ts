@@ -52,6 +52,8 @@ export interface Job {
   reportReady?: boolean;
   /** Compte abonne qui a lance l'analyse ; absent quand c'est le proprietaire. */
   proprietaireId?: string;
+  /** Langue de l'interface au lancement : libelles de progression. */
+  langue?: import("@/lib/langue").Langue;
 }
 
 /* --------------------------------------------------------------- Ingestion */
@@ -434,6 +436,10 @@ export interface Report {
   proprietaireId?: string;
   /** Choisi par l'administration : l'analyse sert d'exemple aux visiteurs. */
   demo?: boolean;
+  /** Marche vise par le dossier de lancement. Absent = Algerie (rapports anciens). */
+  marche?: import("@/lib/marches").MarcheId;
+  /** Langue dans laquelle l'analyse a ete redigee. Absent = francais. */
+  langue?: import("@/lib/langue").Langue;
 }
 
 /** Une ligne de la page de diagnostic de l'installation. */
@@ -455,4 +461,5 @@ export interface ReportSummary {
   score: number;
   proprietaireId?: string;
   demo?: boolean;
+  marche?: import("@/lib/marches").MarcheId;
 }

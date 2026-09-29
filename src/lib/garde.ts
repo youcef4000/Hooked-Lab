@@ -1,5 +1,33 @@
 import { estConnecte } from "./admin-auth";
 import { abonnementActif, crediter, debiter, type Utilisateur } from "./comptes";
+import type { Langue } from "./langue";
+
+/** Refus d'analyse, dans la langue de la personne. */
+function refus(raison: "connexion" | "expire" | "inactif" | "solde" | "suspendu", langue: Langue, details?: { reste: number; requis: number }): string {
+  const fr = langue === "fr";
+  switch (raison) {
+    case "connexion":
+      return fr ? "Connecte-toi pour lancer une analyse." : "Sign in to run an analysis.";
+    case "expire":
+      return fr
+        ? "Ton abonnement a expiré. Renouvelle-le depuis ton compte pour continuer."
+        : "Your subscription has expired. Renew it from your account to continue.";
+    case "inactif":
+      return fr
+        ? "Ton compte n'a pas encore de formule active. Choisis-en une depuis ton compte."
+        : "Your account has no active plan yet. Choose one from your account.";
+    case "suspendu":
+      return fr ? "Compte suspendu." : "Account suspended.";
+    case "solde":
+      return details
+        ? fr
+          ? `Crédits insuffisants : il t'en reste ${details.reste}, il en faut ${details.requis}.`
+          : `Not enough credits: you have ${details.reste}, this needs ${details.requis}.`
+        : fr
+          ? "Crédits insuffisants. Recharge ton compte pour continuer."
+          : "Not enough credits. Top up your account to continue.";
+  }
+}
 import { utilisateurCourant } from "./session";
 import { COUT_CREDITS } from "./tarifs";
 
@@ -52,7 +80,7 @@ export interface Acces {
  * Verifie le droit de lancer une analyse et prend le cout provisoire.
  * Retourne l'identifiant a transmettre au pipeline pour l'ajustement final.
  */
-export async function autoriserAnalyse(type: TypeAnalyse): Promise<Acces> {
+export async function autoriserAnalyse(type: TypeAnalyse, langue: Langue = "fr"): Promise<Acces> {
   // Le proprietaire passe toujours : c'est sa cle, c'est son produit.
   if (await estConnecte()) return { autorise: true, montant: 0 };
 
@@ -62,7 +90,7 @@ export async function autoriserAnalyse(type: TypeAnalyse): Promise<Acces> {
       autorise: false,
       statut: 401,
       montant: 0,
-      message: "Connecte-toi pour lancer une analyse.",
+      message: refus("connexion", langue),
     };
   }
 
@@ -71,7 +99,17 @@ export async function autoriserAnalyse(type: TypeAnalyse): Promise<Acces> {
   if (!resultat.ok) {
     // debiter() distingue deja abonnement expire, solde insuffisant et compte
     // suspendu : on transmet son message tel quel.
-    return { autorise: false, statut: 402, montant: 0, message: resultat.message };
+    const raison = u.suspendu
+      ? "suspendu"
+      : !abonnementActif(u)
+        ? u.expireLe ? "expire" : "inactif"
+        : "solde";
+    return {
+      autorise: false,
+      statut: 402,
+      montant: 0,
+      message: refus(raison, langue, { reste: u.credits, requis: montant }),
+    };
   }
 
   return { autorise: true, utilisateurId: u.id, utilisateur: resultat.utilisateur, montant };
@@ -82,21 +120,17 @@ export async function autoriserAnalyse(type: TypeAnalyse): Promise<Acces> {
  * depot de fichier AVANT de recevoir 300 Mo : sans ce controle, n'importe
  * quel visiteur pourrait remplir le disque du serveur.
  */
-export async function peutLancerAnalyse(): Promise<{ ok: boolean; statut?: number; message?: string }> {
+export async function peutLancerAnalyse(
+  langue: Langue = "fr",
+): Promise<{ ok: boolean; statut?: number; message?: string }> {
   if (await estConnecte()) return { ok: true };
   const u = await utilisateurCourant();
-  if (!u) return { ok: false, statut: 401, message: "Connecte-toi pour lancer une analyse." };
+  if (!u) return { ok: false, statut: 401, message: refus("connexion", langue) };
   if (!abonnementActif(u)) {
-    return {
-      ok: false,
-      statut: 402,
-      message: u.expireLe
-        ? "Ton abonnement a expiré. Saisis un nouveau code pour continuer."
-        : "Ton compte n'est pas encore activé. Saisis le code reçu après ton paiement.",
-    };
+    return { ok: false, statut: 402, message: refus(u.expireLe ? "expire" : "inactif", langue) };
   }
   if (u.credits < COUT_CREDITS.image) {
-    return { ok: false, statut: 402, message: "Crédits insuffisants. Recharge ton compte pour continuer." };
+    return { ok: false, statut: 402, message: refus("solde", langue) };
   }
   return { ok: true };
 }

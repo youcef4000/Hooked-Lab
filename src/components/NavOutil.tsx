@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { SelecteurLangue, useT } from "./Langue";
 
 /* ============================================================================
    Navigation de l'outil.
@@ -12,15 +13,30 @@ import { useEffect, useRef, useState } from "react";
    un menu. Sur grand ecran, tout est affiche.
    ========================================================================== */
 
-const PRINCIPAUX = [
-  { href: "/analyser", label: "Analyser" },
-  { href: "/historique", label: "Historique" },
-];
-
-const SECONDAIRES = [
-  { href: "/tarifs", label: "Tarifs" },
-  { href: "/formulaire", label: "Formulaire" },
-];
+const TEXTES = {
+  fr: {
+    analyser: "Analyser",
+    historique: "Historique",
+    tarifs: "Tarifs",
+    formulaire: "Formulaire COD 🇩🇿",
+    connexion: "Connexion",
+    credits: "Mes crédits",
+    inactif: "Aucune formule active",
+    plus: "Plus de pages",
+    accueil: "Page d'accueil",
+  },
+  en: {
+    analyser: "Analyse",
+    historique: "History",
+    tarifs: "Pricing",
+    formulaire: "Algeria COD form",
+    connexion: "Sign in",
+    credits: "My credits",
+    inactif: "No active plan",
+    plus: "More pages",
+    accueil: "Home page",
+  },
+};
 
 function estActif(chemin: string, href: string): boolean {
   return href === "/analyser" ? chemin === href : chemin.startsWith(href);
@@ -37,6 +53,15 @@ export function NavOutil({
   abonnementActif?: boolean;
 }) {
   const chemin = usePathname();
+  const t = useT(TEXTES);
+  const PRINCIPAUX = [
+    { href: "/analyser", label: t.analyser },
+    { href: "/historique", label: t.historique },
+  ];
+  const SECONDAIRES = [
+    { href: "/tarifs", label: t.tarifs },
+    { href: "/formulaire", label: t.formulaire },
+  ];
   // Diagnostic et Admin ne rejoignent la liste que si le proprietaire est connecte.
   const secondaires = proprietaire
     ? [...SECONDAIRES, { href: "/diagnostic", label: "Diagnostic" }, { href: "/admin", label: "Admin" }]
@@ -84,7 +109,7 @@ export function NavOutil({
       {connecte ? (
         <Link
           href="/compte"
-          title={abonnementActif ? "Mes crédits" : "Compte non activé"}
+          title={abonnementActif ? t.credits : t.inactif}
           className={`ml-1 flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-medium transition sm:px-3 ${
             bas || !abonnementActif
               ? "border-amber-glow/40 bg-amber-glow/10 text-amber-glow hover:bg-amber-glow/20"
@@ -102,12 +127,13 @@ export function NavOutil({
           href="/connexion"
           className="ml-1 shrink-0 whitespace-nowrap rounded-full border border-brand-500/35 bg-brand-500/10 px-3 py-1 text-sm font-medium text-brand-300 transition hover:bg-brand-500/20"
         >
-          Connexion
+          {t.connexion}
         </Link>
       )}
 
       {/* Ecrans larges : tout est visible, pas de menu */}
       <div className="hidden md:flex md:items-center md:gap-1">
+        <SelecteurLangue className="mr-1" />
         {secondaires.map((l) => (
           <Link key={l.href} href={l.href} className={style(estActif(chemin, l.href))}>
             {l.label}
@@ -119,7 +145,7 @@ export function NavOutil({
       <div ref={menu} className="relative md:hidden">
         <button
           onClick={() => setOuvert((o) => !o)}
-          aria-label="Plus de pages"
+          aria-label={t.plus}
           aria-expanded={ouvert}
           className={`rounded-full p-2 transition ${
             ouvert ? "bg-ink-800 text-mist-100" : "text-mist-300 hover:bg-ink-800"
@@ -149,8 +175,11 @@ export function NavOutil({
               href="/"
               className="block border-t border-ink-800 px-4 py-2.5 text-sm text-mist-400 transition hover:bg-ink-850 hover:text-mist-100"
             >
-              Page d&apos;accueil
+              {t.accueil}
             </Link>
+            <div className="border-t border-ink-800 px-4 py-2.5">
+              <SelecteurLangue />
+            </div>
           </div>
         )}
       </div>

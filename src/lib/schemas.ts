@@ -7,14 +7,23 @@
      - pas de minimum/maximum/minLength/maxLength (non supportes)
    Les helpers ci-dessous garantissent ces regles.
 
-   IMPORTANT — pourquoi le rapport est produit en cinq appels et non en un seul.
-   L'API compile chaque schema en grammaire, et refuse (400 "compiled grammar is
-   too large") au-dela d'une certaine complexite. Mesure faite sur ce projet :
-   la limite tient au NOMBRE DE CHAMPS, pas au volume de texte — supprimer
-   toutes les descriptions divise le JSON par deux sans rien changer au verdict.
-   Les cinq schemas ci-dessous sont chacun sous le seuil ; les regrouper le
+   IMPORTANT — pourquoi le rapport est produit en plusieurs appels et non en
+   un seul. L'API compile chaque schema en grammaire, et refuse (400
+   "compiled grammar is too large") au-dela d'une certaine complexite. Mesure
+   faite sur ce projet : la limite tient au NOMBRE DE CHAMPS, pas au volume de
+   texte. Chaque schema ci-dessous est sous le seuil ; les regrouper le
    depasse. Ne pas les fusionner sans reverifier.
+
+   Les schemas sont construits POUR un marche et une langue : les noms de
+   champs ne changent jamais (les rapports restent lisibles d'une version a
+   l'autre), seules les consignes changent. Certains noms portent l'histoire
+   du produit, ne en Algerie : `script_darija` est le script localise,
+   `copy_landing_ar` la seconde version de la page de vente, `*_dzd` des
+   montants dans la devise du marche. Voir marches.ts.
    ========================================================================== */
+
+import type { Langue } from "./langue";
+import type { Marche } from "./marches";
 
 type Schema = Record<string, unknown>;
 
@@ -40,326 +49,338 @@ function obj(properties: Record<string, Schema>, description?: string): Schema {
 
 const strList = (description: string) => arr({ type: "string" }, description);
 
-/* --------------------------------------------------- 1. Analyse creative */
+/** Le contexte qui oriente chaque consigne. */
+export interface ContexteSchemas {
+  marche: Marche;
+  langue: Langue;
+}
 
-const produit = obj(
-  {
-    nom_fr: str("Nom commercial du produit en francais"),
-    nom_en: str("Nom du produit en anglais, tel qu'un fournisseur le nommerait"),
-    nom_ar: str("Nom du produit en arabe (dialecte algerien si pertinent)"),
-    categorie: str("Categorie e-commerce, ex: cuisine, beaute, auto, bebe, fitness"),
-    description: str("Description factuelle du produit en 2 a 3 phrases"),
-    caracteristiques: strList("Caracteristiques concretes visibles dans la video"),
-    variantes: strList("Variantes visibles ou probables : couleurs, tailles, modeles"),
-    materiaux_supposes: strList("Materiaux probables : plastique ABS, inox, silicone..."),
-    poids_estime_g: num("Poids unitaire estime en grammes, emballage inclus"),
-    fragile: bool("true si le produit casse facilement en livraison"),
-    saisonnalite: str("Saisonnalite : toute l'annee, ete, hiver, ramadan, rentree scolaire..."),
-    confiance: num("Confiance dans l'identification du produit, de 0 a 1"),
-  },
-  "Produit identifie dans la creative",
-);
+/** Langue des champs d'analyse (ce que lit l'utilisateur de l'application). */
+export function langueAnalyse(langue: Langue): string {
+  return langue === "fr" ? "French (correct and fully accented)" : "English";
+}
 
-const script = obj(
-  {
-    langue_detectee: str("Langue dominante : darija algerienne, arabe, francais, anglais..."),
-    texte_complet: str("Script complet reconstitue : voix off et textes a l'ecran, dans l'ordre"),
-    segments: arr(
-      obj({
-        start: num("Debut du segment en secondes"),
-        end: num("Fin du segment en secondes"),
-        texte: str("Texte prononce ou affiche"),
-        type: enumStr(
-          ["voix_off", "texte_ecran", "dialogue", "son_ambiant"],
-          "Nature du segment",
-        ),
-      }),
-      "Decoupage temporel du script",
-    ),
-    traduction_fr: str("Traduction francaise du script, ou chaine vide s'il est deja en francais"),
-  },
-  "Script extrait de la creative",
-);
+/** Libelles des boutons Meta, dans la langue des annonces. */
+export function boutonsMeta(m: Marche): string[] {
+  const francais = m.id === "fr" || m.id === "dz";
+  return francais
+    ? ["Acheter", "En savoir plus", "Envoyer un message", "Commander maintenant", "S'inscrire", "Contactez-nous"]
+    : ["Shop Now", "Learn More", "Send Message", "Order Now", "Sign Up", "Contact Us"];
+}
 
-const sequences = arr(
-  obj({
-    start: num("Debut de la sequence en secondes"),
-    end: num("Fin de la sequence en secondes"),
-    titre: str("Titre court de la sequence"),
-    role: enumStr(
-      [
-        "hook",
-        "probleme",
-        "agitation",
-        "solution",
-        "demonstration",
-        "preuve_sociale",
-        "benefice",
-        "offre",
-        "cta",
-        "autre",
-      ],
-      "Fonction de la sequence dans la structure de vente",
-    ),
-    description: str("Ce qui se passe a l'image"),
-    elements_visuels: strList("Elements visuels marquants : gros plan, avant/apres, texte anime..."),
-    texte_ecran: str("Texte affiche a l'ecran pendant la sequence, ou chaine vide"),
-    pourquoi_ca_marche: str("Mecanisme psychologique ou publicitaire exploite"),
-  }),
-  "Sequences cles de la video, dans l'ordre chronologique",
-);
+export function construireSchemas({ marche: m, langue }: ContexteSchemas) {
+  const LA = langueAnalyse(langue);
+  const ANN = m.consigneLangueAnnonces;
+  const NOM = m.nom.en;
+  const cod = m.modele === "cod";
+  const algerie = m.id === "dz";
 
-const hook = obj(
-  {
-    texte: str("Le hook exact : premiers mots prononces ou affiches"),
-    duree_s: num("Duree du hook en secondes"),
-    type: str("Type de hook : question, choc visuel, probleme, curiosite, resultat, prix..."),
-    force_sur_10: num("Note de 0 a 10 du pouvoir d'arret du scroll"),
-    analyse: str("Pourquoi ce hook fonctionne ou echoue"),
-    variantes_proposees: strList("3 a 5 hooks alternatifs adaptes au public algerien"),
-  },
-  "Analyse des 3 premieres secondes",
-);
+  /** Consigne de la seconde version des textes (arabe algerien ou variante B). */
+  const seconde = (objet: string) =>
+    algerie
+      ? `${objet}, in Algerian darija written in Arabic script (not Modern Standard Arabic, not arabizi)`
+      : `${objet} — VARIANT B for A/B testing: same language (${ANN}) but a genuinely different hook, angle and framing, not a paraphrase`;
 
-const angle = obj({
-  nom: str("Nom court de l'angle"),
-  angle: str("Formulation de l'angle marketing en une phrase"),
-  emotion_ciblee: str("Emotion ou motivation visee"),
-  promesse: str("Promesse faite au client"),
-  preuve_utilisee: str("Preuve apportee dans la video : demonstration, temoignage, chiffre..."),
-  public_cible: str("Segment de clientele vise"),
-  score_sur_10: num("Potentiel de l'angle de 0 a 10"),
-  pertinence_dz: str("Adaptation necessaire pour le marche algerien"),
-});
+  /* ------------------------------------------------ 1. Analyse creative */
 
-/** Appel A — lecture de la video : ce qui est montre et dit. */
-export const SCHEMA_VISUEL: Schema = obj({
-  produit,
-  script,
-  sequences,
-  hook,
-});
-
-/** Appel B — lecture strategique : pourquoi la creative fonctionne. */
-export const SCHEMA_STRATEGIE: Schema = obj({
-  angles_marketing: arr(angle, "Angles marketing exploites ou exploitables, du plus fort au plus faible"),
-  mots_cles: obj({
-    produit: strList("Mots-cles decrivant le produit"),
-    emotionnels: strList("Mots-cles emotionnels utilises dans le script"),
-    hashtags: strList("Hashtags pertinents pour TikTok et Instagram en Algerie"),
-    seo_fr: strList("Mots-cles de recherche en francais"),
-    seo_ar: strList("Mots-cles de recherche en arabe / darija"),
-    ciblage_pub: strList("Interets et comportements pour le ciblage Facebook et TikTok Ads"),
-  }),
-  audio: obj({
-    presence_voix: bool("true si une voix humaine est presente"),
-    type_voix: str("Type de voix : homme, femme, jeune, voix off pro, voix IA, aucune"),
-    type_musique: str("Style de musique : trending, orientale, energique, aucune..."),
-    ambiance: str("Ambiance sonore generale"),
-    rythme: str("Rythme percu : lent, moyen, rapide, tres rapide"),
-    role_du_son: str("Role du son dans la persuasion"),
-  }),
-  structure: obj({
-    duree_totale: num("Duree totale de la video en secondes"),
-    nb_plans_estime: num("Nombre de plans distincts estime"),
-    rythme_coupe: str("Cadence de montage : lente, moyenne, rapide"),
-    format: str("Format : vertical 9:16, carre, horizontal"),
-    style_tournage: str("Style : smartphone, studio, ecran enregistre, animation, stock"),
-    ugc_ou_pro: enumStr(["ugc", "semi_pro", "pro"], "Niveau de production percu"),
-    sous_titres_brules: bool("true si des sous-titres sont incrustes dans l'image"),
-    points_de_retention: strList("Moments qui retiennent l'attention"),
-    points_de_decrochage: strList("Moments ou le spectateur risque de scroller"),
-  }),
-  resume_executif: str("Synthese en 4 a 6 phrases : quel produit, quel angle, pourquoi ca convertit"),
-  ce_qui_marche: strList("Points forts de la creative"),
-  ce_qui_manque: strList("Faiblesses et opportunites d'amelioration"),
-});
-
-/* ------------------------------------------ 2. Sourcing + pack Algerie */
-
-const copyLanding = (langue: string) =>
-  obj(
+  const produit = obj(
     {
-      titre: str(`Titre principal de la page de vente, en ${langue}`),
-      sous_titre: str(`Sous-titre, en ${langue}`),
-      bullets: strList(`5 a 7 benefices en puces, en ${langue}`),
-      offre: str(`Formulation de l'offre et du prix, en ${langue}`),
-      garantie: str(`Garantie ou reassurance adaptee au paiement a la livraison, en ${langue}`),
-      faq: arr(
-        obj({
-          question: str(`Question frequente, en ${langue}`),
-          reponse: str(`Reponse, en ${langue}`),
-        }),
-        `4 a 6 questions frequentes, en ${langue}`,
+      nom_fr: str(`Commercial product name, written in ${LA} (the field name is historical: write it in ${LA}, whatever the name says)`),
+      nom_en: str("Product name in English, the way a Chinese supplier would list it"),
+      nom_ar: str(
+        algerie
+          ? "Product name in Arabic (Algerian dialect if relevant)"
+          : `Consumer-facing product name as it would appear in an ad for ${NOM}, written in ${ANN} — NOT in Arabic, whatever the field name says`,
       ),
-      cta: str(`Texte du bouton d'achat, en ${langue}`),
+      categorie: str(`E-commerce category, in ${LA}: kitchen, beauty, car, baby, fitness...`),
+      description: str(`Factual description of the product in 2 to 3 sentences, in ${LA}`),
+      caracteristiques: strList(`Concrete features visible in the video, in ${LA}`),
+      variantes: strList(`Visible or likely variants: colours, sizes, models, in ${LA}`),
+      materiaux_supposes: strList(`Likely materials: ABS plastic, stainless steel, silicone..., in ${LA}`),
+      poids_estime_g: num("Estimated unit weight in grams, packaging included"),
+      fragile: bool("true if the product breaks easily in transit"),
+      saisonnalite: str(
+        `Seasonality in ${NOM}, in ${LA}: all year, summer, winter, back to school, Black Friday / Christmas${algerie ? ", Ramadan" : ""}...`,
+      ),
+      confiance: num("Confidence in the product identification, from 0 to 1"),
     },
-    `Texte de page de vente en ${langue}`,
+    "Product identified in the creative",
   );
 
-/** Appel C — sourcing fournisseur et economie du produit. */
-export const SCHEMA_SOURCING: Schema = obj({
-  sourcing: obj({
-    requetes: obj({
-      en: strList("3 a 6 requetes de recherche fournisseur en anglais"),
-      zh: strList("3 a 6 requetes de recherche en chinois simplifie, pour 1688 et Taobao"),
-      alias_zh: strList("Appellations chinoises alternatives du produit"),
-    }),
-    estimation: obj({
-      prix_achat_unitaire_usd_min: num("Prix d'achat unitaire minimum estime en USD, depart Chine"),
-      prix_achat_unitaire_usd_max: num("Prix d'achat unitaire maximum estime en USD"),
-      moq_estime: num("Quantite minimum de commande typique chez ce type de fournisseur"),
-      frais_port_unitaire_usd_min: num("Fret unitaire minimum estime vers l'Algerie, en USD"),
-      frais_port_unitaire_usd_max: num("Fret unitaire maximum estime vers l'Algerie, en USD"),
-      prix_vente_dz_dzd_min: num("Prix de vente pratique en Algerie, bas de fourchette, en DZD"),
-      prix_vente_dz_dzd_max: num("Prix de vente pratique en Algerie, haut de fourchette, en DZD"),
-      hypotheses: strList("Hypotheses retenues pour ces estimations"),
-      fiabilite: enumStr(["faible", "moyenne", "bonne"], "Fiabilite de l'estimation"),
-    }),
-    conseils_negociation: strList("Conseils concrets pour negocier avec le fournisseur chinois"),
-    risques_import: strList("Risques d'importation vers l'Algerie : douane, delais, qualite"),
-  }),
-});
+  const script = obj(
+    {
+      langue_detectee: str(`Dominant language of the creative, named in ${LA}`),
+      texte_complet: str("Full reconstructed script: voice-over and on-screen text, in order, in the ORIGINAL language"),
+      segments: arr(
+        obj({
+          start: num("Segment start in seconds"),
+          end: num("Segment end in seconds"),
+          texte: str("Spoken or displayed text, in the original language"),
+          type: enumStr(["voix_off", "texte_ecran", "dialogue", "son_ambiant"], "Segment type"),
+        }),
+        "Timed breakdown of the script",
+      ),
+      traduction_fr: str(
+        `Translation of the script into ${LA} (the field name is historical), or an empty string if it is already in that language`,
+      ),
+    },
+    "Script extracted from the creative",
+  );
 
-/** Appel D — verdict marche et textes de vente. */
-export const SCHEMA_DZ_OFFRE: Schema = obj({
-  score: obj({
-    global_sur_100: num("Score global du potentiel du produit en Algerie, de 0 a 100"),
-    demande: num("Note de la demande locale, de 0 a 20"),
-    concurrence: num("Note de la concurrence, de 0 a 20, ou 20 signifie peu de concurrence"),
-    marge: num("Note du potentiel de marge, de 0 a 20"),
-    logistique: num("Note de la facilite logistique, de 0 a 20"),
-    facilite_creative: num("Note de la facilite a produire des creatives, de 0 a 20"),
-    verdict: str("Verdict en une phrase : a tester, a eviter, fort potentiel..."),
-    justification: str("Justification du score en 3 a 5 phrases"),
-  }),
-  script_darija: obj({
-    texte: str("Script video complet reecrit en darija algerienne, pret a tourner"),
-    notes: strList("Notes de tournage et d'intonation"),
-  }),
-  copy_landing_fr: copyLanding("francais"),
-  copy_landing_ar: copyLanding("arabe algerien"),
-});
+  const sequences = arr(
+    obj({
+      start: num("Sequence start in seconds"),
+      end: num("Sequence end in seconds"),
+      titre: str(`Short title of the sequence, in ${LA}`),
+      role: enumStr(
+        ["hook", "probleme", "agitation", "solution", "demonstration", "preuve_sociale", "benefice", "offre", "cta", "autre"],
+        "Role of the sequence in the sales structure",
+      ),
+      description: str(`What happens on screen, in ${LA}`),
+      elements_visuels: strList(`Striking visual elements: close-up, before/after, animated text..., in ${LA}`),
+      texte_ecran: str("On-screen text during the sequence, in the original language, or an empty string"),
+      pourquoi_ca_marche: str(`Psychological or advertising mechanism at work, in ${LA}`),
+    }),
+    "Key sequences of the video, in chronological order",
+  );
 
-/** Appel E1 — communication publicitaire. */
-export const SCHEMA_DZ_COMMUNICATION: Schema = obj({
-  angles_pub_dz: arr(angle, "3 a 5 angles publicitaires reecrits pour le marche algerien"),
-  annonces: arr(
-    obj({
-      plateforme: enumStr(["facebook", "tiktok", "instagram"], "Plateforme visee"),
-      accroche: str("Premiere ligne de l'annonce"),
-      texte: str("Corps de l'annonce, en francais ou darija selon la cible"),
-      cta: str("Appel a l'action"),
-      angle_utilise: str("Angle marketing exploite"),
-    }),
-    "4 a 6 annonces pretes a publier",
-  ),
-  objections: arr(
-    obj({
-      objection: str("Objection frequente du client algerien"),
-      reponse: str("Reponse a apporter, prete a utiliser au telephone ou en commentaire"),
-    }),
-    "5 a 8 objections et leurs reponses",
-  ),
-});
+  const hook = obj(
+    {
+      texte: str("The exact hook: first words spoken or displayed, in the original language"),
+      duree_s: num("Hook duration in seconds"),
+      type: str(`Hook type, in ${LA}: question, visual shock, problem, curiosity, result, price...`),
+      force_sur_10: num("Scroll-stopping power, from 0 to 10"),
+      analyse: str(`Why this hook works or fails, in ${LA}`),
+      variantes_proposees: strList(`3 to 5 alternative hooks written for shoppers in ${NOM}, in ${ANN}`),
+    },
+    "Analysis of the first 3 seconds",
+  );
 
-/** Appel E2 — ciblage, production et plan de lancement. */
-export const SCHEMA_DZ_EXECUTION: Schema = obj({
-  ciblage: obj({
-    wilayas_prioritaires: strList("Wilayas a cibler en priorite"),
-    tranche_age: str("Tranche d'age a cibler"),
-    genre: str("Genre a cibler : hommes, femmes, tous"),
-    interets: strList("Interets a cibler en publicite"),
-    moments_de_diffusion: strList("Creneaux horaires les plus rentables"),
-    budget_test_conseille_dzd: num("Budget de test quotidien conseille en DZD"),
-  }),
-  idees_creatives: arr(
-    obj({
-      titre: str("Titre de l'idee de video"),
-      hook: str("Hook des 3 premieres secondes"),
-      deroule: strList("Deroule plan par plan"),
-      materiel_necessaire: str("Materiel necessaire pour tourner"),
-      difficulte: enumStr(["facile", "moyenne", "difficile"], "Difficulte de production"),
-    }),
-    "3 a 5 idees de creatives a tourner localement",
-  ),
-  concurrence_dz: strList("Etat de la concurrence sur ce produit en Algerie"),
-  risques: strList("Risques specifiques a ce produit sur le marche algerien"),
-  plan_de_lancement: strList("Plan de lancement etape par etape, de la commande au scaling"),
-});
+  const angle = obj({
+    nom: str(`Short name of the angle, in ${LA}`),
+    angle: str(`The marketing angle in one sentence, in ${LA}`),
+    emotion_ciblee: str(`Targeted emotion or motivation, in ${LA}`),
+    promesse: str(`Promise made to the customer, in ${LA}`),
+    preuve_utilisee: str(`Proof used: demonstration, testimonial, figure..., in ${LA}`),
+    public_cible: str(`Targeted customer segment, in ${LA}`),
+    score_sur_10: num("Potential of the angle from 0 to 10"),
+    pertinence_dz: str(`How to adapt this angle for ${NOM}, in ${LA}`),
+  });
 
-/**
- * Appel F — annonces au format Meta.
- *
- * Schema separe volontairement : le fusionner avec la campagne ferait depasser
- * la limite de grammaire (voir l'entete de ce fichier). Les longueurs indiquees
- * sont celles au-dela desquelles Meta tronque l'affichage.
- */
-export const SCHEMA_META_ADS: Schema = obj({
-  meta_ads: arr(
-    obj({
-      nom_variante: str("Nom court de la variante, pour la reperer dans le gestionnaire"),
-      angle_utilise: str("Angle marketing exploite par cette annonce"),
-      texte_principal: str(
-        "Texte principal de l'annonce Meta, en francais. Environ 125 caracteres avant la coupure " +
-          "« voir plus » : place le benefice et le prix dans les deux premieres lignes. Emojis autorises avec parcimonie.",
-      ),
-      titre: str("Titre de l'annonce Meta, en francais. Maximum 40 caracteres, sinon Meta le coupe."),
-      description: str(
-        "Description de l'annonce Meta, en francais. Maximum 30 caracteres. Sert la reassurance : livraison, paiement, garantie.",
-      ),
-      bouton_cta: enumStr(
-        [
-          "Acheter",
-          "En savoir plus",
-          "Envoyer un message",
-          "Commander maintenant",
-          "S'inscrire",
-          "Contactez-nous",
-        ],
-        "Libelle du bouton d'appel a l'action propose par Meta",
-      ),
-      texte_principal_ar: str(
-        "Le meme texte principal en arabe algerien (darija en caracteres arabes), pas en arabe litteraire.",
-      ),
-      titre_ar: str("Le meme titre en arabe algerien. Maximum 40 caracteres."),
-      description_ar: str("La meme description en arabe algerien. Maximum 30 caracteres."),
-    }),
-    "4 a 6 jeux d'annonces Meta complets, chacun sur un angle different",
-  ),
-});
+  /** Appel A — lecture de la video : ce qui est montre et dit. */
+  const VISUEL = obj({ produit, script, sequences, hook });
 
-/**
- * Appel G — banque de videos reutilisables.
- *
- * On ne demande pas des URL de videos precises : le modele les inventerait.
- * On demande des requetes exactes, que l'application transforme en liens de
- * recherche. Les sources fournisseur (1688, AliExpress) sont prioritaires car
- * leurs videos montrent le produit a l'identique, sans texte incruste, et sont
- * telechargeables.
- */
-export const SCHEMA_BANQUE_VIDEOS: Schema = obj({
-  banque_videos: arr(
-    obj({
-      source: enumStr(
-        ["1688", "AliExpress", "Alibaba", "TikTok", "Instagram", "YouTube Shorts", "Pinterest", "Banque libre"],
-        "Plateforme ou chercher",
+  /** Appel B — lecture strategique : pourquoi la creative fonctionne. */
+  const STRATEGIE = obj({
+    angles_marketing: arr(angle, "Marketing angles used or usable, from strongest to weakest"),
+    mots_cles: obj({
+      produit: strList(`Keywords describing the product, in ${LA}`),
+      emotionnels: strList(`Emotional keywords used in the script, in ${LA}`),
+      hashtags: strList(`Relevant TikTok and Instagram hashtags for ${NOM}`),
+      seo_fr: strList(`Search keywords shoppers would type, in ${ANN}`),
+      seo_ar: strList(
+        algerie ? "Search keywords in Arabic / darija" : `Long-tail search phrases shoppers would type, in ${ANN}`,
       ),
-      titre: str("Intitule court de la piste, ex : « Video fournisseur du produit sur 1688 »"),
-      requete: str(
-        "Requete exacte a coller dans la recherche de cette plateforme. En chinois pour 1688 et " +
-          "Taobao, en anglais pour AliExpress et Alibaba, en francais ou arabe pour TikTok et Instagram.",
-      ),
-      contenu: str("Ce qu'on trouve concretement avec cette requete, en une phrase"),
-      usage: str("Comment reutiliser ces plans dans le montage : hook, demonstration, plan de coupe..."),
-      produit_identique: bool(
-        "true si le produit analyse y apparait a l'identique, false pour un plan d'ambiance ou generique",
-      ),
-      sans_texte: bool(
-        "true si les videos de cette source sont generalement sans texte incruste, donc reutilisables directement",
+      ciblage_pub: strList(`Interests and behaviours for Meta and TikTok Ads targeting in ${NOM}, in ${LA}`),
+    }),
+    audio: obj({
+      presence_voix: bool("true if a human voice is present"),
+      type_voix: str(`Voice type, in ${LA}: man, woman, young, professional voice-over, AI voice, none`),
+      type_musique: str(`Music style, in ${LA}: trending, energetic, calm, none...`),
+      ambiance: str(`Overall sound mood, in ${LA}`),
+      rythme: str(`Perceived pace, in ${LA}: slow, medium, fast, very fast`),
+      role_du_son: str(`Role of sound in the persuasion, in ${LA}`),
+    }),
+    structure: obj({
+      duree_totale: num("Total video duration in seconds"),
+      nb_plans_estime: num("Estimated number of distinct shots"),
+      rythme_coupe: str(`Editing pace, in ${LA}: slow, medium, fast`),
+      format: str(`Format, in ${LA}: vertical 9:16, square, horizontal`),
+      style_tournage: str(`Style, in ${LA}: smartphone, studio, screen recording, animation, stock`),
+      ugc_ou_pro: enumStr(["ugc", "semi_pro", "pro"], "Perceived production level"),
+      sous_titres_brules: bool("true if subtitles are burned into the image"),
+      points_de_retention: strList(`Moments that hold attention, in ${LA}`),
+      points_de_decrochage: strList(`Moments where viewers risk scrolling away, in ${LA}`),
+    }),
+    resume_executif: str(`Summary in 4 to 6 sentences, in ${LA}: which product, which angle, why it converts`),
+    ce_qui_marche: strList(`Strengths of the creative, in ${LA}`),
+    ce_qui_manque: strList(`Weaknesses and improvement opportunities, in ${LA}`),
+  });
+
+  /* ------------------------------------------ 2. Sourcing + dossier marche */
+
+  const copyLanding = (version: string) =>
+    obj(
+      {
+        titre: str(`Main headline of the sales page — ${version}`),
+        sous_titre: str(`Sub-headline — ${version}`),
+        bullets: strList(`5 to 7 benefit bullet points — ${version}`),
+        offre: str(`Offer and price statement, price in ${m.devise} — ${version}`),
+        garantie: str(
+          `${cod ? "Reassurance adapted to cash on delivery" : "Guarantee and reassurance: secure payment, delivery times, returns"} — ${version}`,
+        ),
+        faq: arr(
+          obj({ question: str(`Frequent question — ${version}`), reponse: str(`Answer — ${version}`) }),
+          `4 to 6 frequent questions — ${version}`,
+        ),
+        cta: str(`Buy button text — ${version}`),
+      },
+      `Sales page copy — ${version}`,
+    );
+
+  const principale = `main version, in ${ANN}`;
+
+  /** Appel C — sourcing fournisseur et economie du produit. */
+  const SOURCING = obj({
+    sourcing: obj({
+      requetes: obj({
+        en: strList("3 to 6 supplier search queries in English"),
+        zh: strList("3 to 6 search queries in simplified Chinese, as actually used on 1688 and Taobao"),
+        alias_zh: strList("Alternative Chinese names of the product"),
+      }),
+      estimation: obj({
+        prix_achat_unitaire_usd_min: num("Minimum estimated unit purchase price in USD, ex-works China"),
+        prix_achat_unitaire_usd_max: num("Maximum estimated unit purchase price in USD"),
+        moq_estime: num("Typical minimum order quantity for this kind of supplier"),
+        frais_port_unitaire_usd_min: num(
+          cod
+            ? "Minimum estimated unit freight to Algeria (stock import), in USD"
+            : `Minimum estimated unit shipping from China to the end customer in ${NOM} (dropshipping line such as YunExpress, CJ Packet), in USD`,
+        ),
+        frais_port_unitaire_usd_max: num("Maximum estimated unit shipping, in USD"),
+        prix_vente_dz_dzd_min: num(`Realistic retail price in ${NOM}, low end, in ${m.devise}`),
+        prix_vente_dz_dzd_max: num(`Realistic retail price in ${NOM}, high end, in ${m.devise}`),
+        hypotheses: strList(`Assumptions behind these estimates, in ${LA}`),
+        fiabilite: enumStr(["faible", "moyenne", "bonne"], "Reliability of the estimate (low, medium, good)"),
+      }),
+      conseils_negociation: strList(`Concrete tips to negotiate with the Chinese supplier, in ${LA}`),
+      risques_import: strList(
+        `Risks of importing to and selling in ${NOM}: customs, taxes, delays, quality, platform policies — in ${LA}`,
       ),
     }),
-    "6 a 8 pistes, classees de la plus utile a la moins utile. Privilegie les sources ou le " +
-      "produit apparait a l'identique et sans texte incruste.",
-  ),
-});
+  });
+
+  /** Appel D — verdict marche et textes de vente. */
+  const OFFRE = obj({
+    score: obj({
+      global_sur_100: num(`Overall potential of the product in ${NOM}, from 0 to 100`),
+      demande: num(`Demand in ${NOM}, from 0 to 20`),
+      concurrence: num("Competition score from 0 to 20, where 20 means little competition"),
+      marge: num("Margin potential from 0 to 20"),
+      logistique: num("Logistics ease from 0 to 20"),
+      facilite_creative: num("Ease of producing creatives from 0 to 20"),
+      verdict: str(`Verdict in one sentence, in ${LA}: worth testing, avoid, strong potential...`),
+      justification: str(`Justification of the score in 3 to 5 sentences, in ${LA}`),
+    }),
+    script_darija: obj({
+      texte: str(
+        algerie
+          ? "Complete video script rewritten in Algerian darija (Arabic script), ready to shoot"
+          : `Complete video script rewritten for ${NOM}, in ${ANN}, ready to shoot: hook, demonstration, offer, call to action`,
+      ),
+      notes: strList(`Shooting and delivery notes, in ${LA}`),
+    }),
+    copy_landing_fr: copyLanding(principale),
+    copy_landing_ar: copyLanding(seconde("second version")),
+  });
+
+  /** Appel E1 — communication publicitaire. */
+  const COMMUNICATION = obj({
+    angles_pub_dz: arr(angle, `3 to 5 ad angles rewritten for ${NOM}`),
+    annonces: arr(
+      obj({
+        plateforme: enumStr(["facebook", "tiktok", "instagram"], "Target platform"),
+        accroche: str(`First line of the ad, in ${ANN}`),
+        texte: str(`Body of the ad, in ${ANN}`),
+        cta: str(`Call to action, in ${ANN}`),
+        angle_utilise: str(`Marketing angle used, in ${LA}`),
+      }),
+      "4 to 6 ads ready to publish",
+    ),
+    objections: arr(
+      obj({
+        objection: str(`Frequent objection from customers in ${NOM}, in ${LA}`),
+        reponse: str(
+          `Answer ready to use ${cod ? "on the phone or in comments" : "in comments, DMs or on the product page"}, in ${ANN}`,
+        ),
+      }),
+      "5 to 8 objections and their answers",
+    ),
+  });
+
+  /** Appel E2 — ciblage, production et plan de lancement. */
+  const EXECUTION = obj({
+    ciblage: obj({
+      wilayas_prioritaires: strList(`${m.regions.en} to target first`),
+      tranche_age: str(`Age range to target, in ${LA}`),
+      genre: str(`Gender to target, in ${LA}: men, women, all`),
+      interets: strList(`Interests to target in ads, in ${LA}`),
+      moments_de_diffusion: strList(`Most profitable time slots (local time in ${NOM}), in ${LA}`),
+      budget_test_conseille_dzd: num(`Recommended daily test budget, in ${m.devise}`),
+    }),
+    idees_creatives: arr(
+      obj({
+        titre: str(`Title of the video idea, in ${LA}`),
+        hook: str(`Hook of the first 3 seconds, in ${ANN}`),
+        deroule: strList(`Shot-by-shot outline, in ${LA}`),
+        materiel_necessaire: str(`Equipment needed to shoot, in ${LA}`),
+        difficulte: enumStr(["facile", "moyenne", "difficile"], "Production difficulty (easy, medium, hard)"),
+      }),
+      "3 to 5 creative ideas to shoot",
+    ),
+    concurrence_dz: strList(`State of competition for this product in ${NOM}, in ${LA}`),
+    risques: strList(`Product-specific risks in ${NOM}, in ${LA}`),
+    plan_de_lancement: strList(`Step-by-step launch plan, from ordering stock to scaling, in ${LA}`),
+  });
+
+  /**
+   * Appel F — annonces au format Meta. Schema separe volontairement (limite
+   * de grammaire). Les longueurs sont celles au-dela desquelles Meta tronque.
+   */
+  const META_ADS = obj({
+    meta_ads: arr(
+      obj({
+        nom_variante: str(`Short name of the variant, to find it in Ads Manager, in ${LA}`),
+        angle_utilise: str(`Marketing angle used by this ad, in ${LA}`),
+        texte_principal: str(
+          `Primary text of the Meta ad, in ${ANN}. About 125 characters before the "see more" cut: put the benefit and the price in the first two lines. Emojis allowed sparingly.`,
+        ),
+        titre: str(`Meta ad headline, in ${ANN}. 40 characters maximum or Meta truncates it.`),
+        description: str(
+          `Meta ad description, in ${ANN}. 30 characters maximum. Used for reassurance: delivery, payment, guarantee.`,
+        ),
+        bouton_cta: enumStr(boutonsMeta(m), "Label of the Meta call-to-action button"),
+        texte_principal_ar: str(seconde("The primary text")),
+        titre_ar: str(seconde("The headline, 40 characters maximum")),
+        description_ar: str(seconde("The description, 30 characters maximum")),
+      }),
+      "4 to 6 complete Meta ad sets, each on a different angle",
+    ),
+  });
+
+  /**
+   * Appel G — banque de videos reutilisables. Des requetes, jamais des URL :
+   * le modele les inventerait. L'application en fait des liens de recherche.
+   */
+  const BANQUE_VIDEOS = obj({
+    banque_videos: arr(
+      obj({
+        source: enumStr(
+          ["1688", "AliExpress", "Alibaba", "TikTok", "Instagram", "YouTube Shorts", "Pinterest", "Banque libre"],
+          "Platform to search on",
+        ),
+        titre: str(`Short title of the lead, in ${LA}, e.g. "Supplier video of the product on 1688"`),
+        requete: str(
+          `Exact query to paste into the platform's search: in Chinese for 1688 and Taobao, in English for AliExpress and Alibaba, in ${ANN} for TikTok and Instagram.`,
+        ),
+        contenu: str(`What you actually find with this query, in one sentence, in ${LA}`),
+        usage: str(`How to reuse these shots in the edit: hook, demonstration, cutaway..., in ${LA}`),
+        produit_identique: bool("true if the analysed product appears identically, false for generic or mood shots"),
+        sans_texte: bool("true if videos from this source usually have no burned-in text, so they can be reused directly"),
+      }),
+      "6 to 8 leads, ranked from most to least useful. Prioritise sources where the product appears identically and without burned-in text.",
+    ),
+  });
+
+  return { VISUEL, STRATEGIE, SOURCING, OFFRE, COMMUNICATION, EXECUTION, META_ADS, BANQUE_VIDEOS };
+}

@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { estConnecte } from "@/lib/admin-auth";
 import { utilisateurCourant } from "@/lib/session";
 import { abonnementActif } from "@/lib/comptes";
+import { langueCourante } from "@/lib/langue-serveur";
 
 /* Layout de l'outil : la barre de travail, presente sur toutes les pages
    sauf la vitrine. */
@@ -14,6 +15,7 @@ export default async function LayoutOutil({ children }: { children: React.ReactN
   // facon, mais un lien visible invite a frapper a la porte.
   const proprietaire = await estConnecte();
   const abonne = await utilisateurCourant();
+  const langue = await langueCourante();
 
   return (
     <>
@@ -33,7 +35,9 @@ export default async function LayoutOutil({ children }: { children: React.ReactN
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-8">{children}</main>
 
       <footer className="border-t border-ink-800 px-5 py-6 text-center text-xs leading-relaxed text-mist-400">
-        Les prix et estimations sont des ordres de grandeur, à vérifier auprès des fournisseurs.
+        {langue === "fr"
+          ? "Les prix et estimations sont des ordres de grandeur, à vérifier auprès des fournisseurs."
+          : "Prices and estimates are orders of magnitude: always confirm them with suppliers."}
       </footer>
     </>
   );

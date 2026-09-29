@@ -1,47 +1,79 @@
 import Link from "next/link";
 import { CARTE_ACTIVE } from "@/lib/public";
+import type { Langue } from "@/lib/langue";
 
 /* ============================================================================
    Bandeau affiche au-dessus de la zone de depot quand l'analyse n'est pas
    possible. Trois situations, trois messages, trois actions differentes :
-   pas de compte, compte non active, plus de credits. Un message unique du
-   genre "acces refuse" laisserait le visiteur sans savoir quoi faire.
+   pas de compte, pas de formule active, plus de credits. Un message unique
+   du genre "acces refuse" laisserait le visiteur sans savoir quoi faire.
    ========================================================================== */
+
+const TEXTES = {
+  fr: {
+    visiteur: {
+      titre: "Crée ton compte pour lancer une analyse",
+      texte: CARTE_ACTIVE
+        ? "Une minute, un paiement sécurisé, et ta première analyse part aussitôt."
+        : "Une minute, et on t'active dans l'heure. Tu peux déjà parcourir un rapport d'exemple.",
+      action: "Créer mon compte",
+      secondaire: "J'ai déjà un compte",
+    },
+    inactif: {
+      titre: "Ton compte n'a pas encore de formule active",
+      texte: "Choisis ta formule depuis ton compte : tes crédits arrivent aussitôt.",
+      action: "Choisir ma formule",
+      secondaire: "Voir les formules",
+    },
+    vide: {
+      titre: "Il ne te reste plus de crédits",
+      texte: (c: number) => `Ton solde est à ${c}. Une recharge te remet en route tout de suite, sans changer de formule.`,
+      action: "Recharger",
+      secondaire: "Voir les recharges",
+    },
+  },
+  en: {
+    visiteur: {
+      titre: "Create your account to run an analysis",
+      texte: CARTE_ACTIVE
+        ? "One minute, a secure payment, and your first analysis starts right away."
+        : "One minute, and we activate you within the hour. You can already browse a sample report.",
+      action: "Create my account",
+      secondaire: "I already have an account",
+    },
+    inactif: {
+      titre: "Your account has no active plan yet",
+      texte: "Pick your plan from your account: credits land right away.",
+      action: "Choose my plan",
+      secondaire: "See the plans",
+    },
+    vide: {
+      titre: "You're out of credits",
+      texte: (c: number) => `Your balance is ${c}. A top-up gets you going right away, without changing plans.`,
+      action: "Top up",
+      secondaire: "See top-ups",
+    },
+  },
+};
 
 export function BandeauAcces({
   connecte,
   credits,
   abonnementActif,
+  langue,
 }: {
   connecte: boolean;
   credits: number;
   abonnementActif: boolean;
+  langue: Langue;
 }) {
+  const t = TEXTES[langue];
   const cas = !connecte ? "visiteur" : !abonnementActif ? "inactif" : "vide";
 
   const contenu = {
-    visiteur: {
-      titre: "Crée ton compte pour lancer une analyse",
-      texte:
-        CARTE_ACTIVE
-          ? "Deux minutes, un paiement par carte ou en dinars, et ta première analyse part aussitôt."
-          : "Deux minutes, puis on t'appelle pour l'activer. Tu peux déjà parcourir un rapport d'exemple pour voir ce que tu recevras.",
-      action: { href: "/inscription", label: "Créer mon compte" },
-      secondaire: { href: "/connexion", label: "J'ai déjà un compte" },
-    },
-    inactif: {
-      titre: "Ton compte n'est pas encore activé",
-      texte:
-        "Saisis le code reçu après ton paiement, et tes crédits seront disponibles immédiatement.",
-      action: { href: "/compte", label: "Saisir mon code" },
-      secondaire: { href: "/#tarifs", label: "Voir les formules" },
-    },
-    vide: {
-      titre: "Il ne te reste plus de crédits",
-      texte: `Ton solde est à ${credits}. Une recharge te remet en route tout de suite, sans changer ton abonnement.`,
-      action: { href: "/compte", label: "Recharger" },
-      secondaire: { href: "/#tarifs", label: "Voir les recharges" },
-    },
+    visiteur: { ...t.visiteur, href: "/inscription", hrefSecondaire: "/connexion" },
+    inactif: { ...t.inactif, href: "/compte", hrefSecondaire: "/tarifs" },
+    vide: { ...t.vide, texte: t.vide.texte(credits), href: "/compte", hrefSecondaire: "/tarifs" },
   }[cas];
 
   // Une seule ligne sur grand ecran : ce bandeau precede le hero, et rien ne
@@ -54,16 +86,16 @@ export function BandeauAcces({
       </p>
       <div className="flex shrink-0 gap-2">
         <Link
-          href={contenu.action.href}
+          href={contenu.href}
           className="rounded-[var(--r-sm)] bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-ink-950 transition hover:bg-brand-400"
         >
-          {contenu.action.label}
+          {contenu.action}
         </Link>
         <Link
-          href={contenu.secondaire.href}
+          href={contenu.hrefSecondaire}
           className="rounded-[var(--r-sm)] border border-ink-700 px-3.5 py-1.5 text-xs font-medium text-mist-300 transition hover:border-brand-500/50 hover:text-brand-300"
         >
-          {contenu.secondaire.label}
+          {contenu.secondaire}
         </Link>
       </div>
     </div>

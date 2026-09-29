@@ -29,6 +29,7 @@ function toSummary(report: Report): ReportSummary {
     score: report.dz.score.global_sur_100,
     proprietaireId: report.proprietaireId,
     demo: report.demo === true,
+    marche: report.marche,
   };
 }
 

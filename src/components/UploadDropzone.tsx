@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { evenement } from "./Pixels";
+import { useT } from "./Langue";
+import { useMarche } from "./Marche";
 import {
   ACCEPT_INPUT,
   EXTENSIONS_ACCEPTEES,
@@ -13,8 +15,41 @@ import {
 
 type Etat = "attente" | "envoi" | "verification" | "erreur";
 
+const TEXTES = {
+  fr: {
+    format: (liste: string) => `Format non pris en charge. Formats acceptés : ${liste}.`,
+    tropLourd: (taille: string, limite: string) => `Fichier trop volumineux (${taille}). La limite est ${limite}.`,
+    vide: "Ce fichier est vide.",
+    refuse: (code: number) => `Le serveur a refusé le fichier (erreur ${code}).`,
+    transfert: "Le transfert a échoué. Vérifie ta connexion, puis réessaie.",
+    titreCompact: "Dépose la vidéo ou l'image ici",
+    titre: "Glisse ta vidéo ou ton image ici",
+    aide: (liste: string, limite: string) => `ou clique pour parcourir tes fichiers — ${liste} jusqu'à ${limite}`,
+    enCours: "Transfert en cours —",
+    verification: "Vérification du fichier…",
+    annuler: "Annuler",
+    autre: "Choisir un autre fichier",
+  },
+  en: {
+    format: (liste: string) => `Unsupported format. Accepted formats: ${liste}.`,
+    tropLourd: (taille: string, limite: string) => `File too large (${taille}). The limit is ${limite}.`,
+    vide: "This file is empty.",
+    refuse: (code: number) => `The server rejected the file (error ${code}).`,
+    transfert: "The upload failed. Check your connection, then try again.",
+    titreCompact: "Drop the video or image here",
+    titre: "Drop your video or image here",
+    aide: (liste: string, limite: string) => `or click to browse your files — ${liste} up to ${limite}`,
+    enCours: "Uploading —",
+    verification: "Checking the file…",
+    annuler: "Cancel",
+    autre: "Choose another file",
+  },
+};
+
 export function UploadDropzone({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
+  const t = useT(TEXTES);
+  const [marche] = useMarche();
   const inputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
 
@@ -26,12 +61,12 @@ export function UploadDropzone({ compact = false }: { compact?: boolean }) {
 
   function valider(fichier: File): string | null {
     if (!extensionAcceptee(fichier.name)) {
-      return `Format non pris en charge. Formats acceptes : ${EXTENSIONS_ACCEPTEES.join(", ")}.`;
+      return t.format(EXTENSIONS_ACCEPTEES.join(", "));
     }
     if (fichier.size > TAILLE_MAX_OCTETS) {
-      return `Fichier trop volumineux (${formatTaille(fichier.size)}). La limite est ${formatTaille(TAILLE_MAX_OCTETS)}.`;
+      return t.tropLourd(formatTaille(fichier.size), formatTaille(TAILLE_MAX_OCTETS));
     }
-    if (fichier.size === 0) return "Ce fichier est vide.";
+    if (fichier.size === 0) return t.vide;
     return null;
   }
 
@@ -54,6 +89,7 @@ export function UploadDropzone({ compact = false }: { compact?: boolean }) {
     xhr.open("POST", "/api/analyze/fichier");
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
     xhr.setRequestHeader("x-nom-fichier", encodeURIComponent(fichier.name));
+    xhr.setRequestHeader("x-marche", marche);
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setPourcentage(Math.round((e.loaded / e.total) * 100));
@@ -78,12 +114,12 @@ export function UploadDropzone({ compact = false }: { compact?: boolean }) {
         router.push(`/analyse/${data.id}`);
         return;
       }
-      setErreur(data.error ?? `Le serveur a refuse le fichier (erreur ${xhr.status}).`);
+      setErreur(data.error ?? t.refuse(xhr.status));
       setEtat("erreur");
     };
 
     xhr.onerror = () => {
-      setErreur("Le transfert a echoue. Vérifie que le serveur tourne toujours, puis réessaie.");
+      setErreur(t.transfert);
       setEtat("erreur");
     };
 
@@ -175,11 +211,10 @@ export function UploadDropzone({ compact = false }: { compact?: boolean }) {
               </svg>
             </span>
             <p className={`font-semibold text-mist-100 ${compact ? "text-sm" : "text-base"}`}>
-              {compact ? "Déposé la vidéo ou l’image ici" : "Glisse ta vidéo ou ton image ici"}
+              {compact ? t.titreCompact : t.titre}
             </p>
             <p className="mt-1 text-xs text-mist-400">
-              ou clique pour parcourir tes fichiers — {EXTENSIONS_ACCEPTEES.join(", ")} jusqu&apos;a{" "}
-              {formatTaille(TAILLE_MAX_OCTETS)}
+              {t.aide(EXTENSIONS_ACCEPTEES.join(", "), formatTaille(TAILLE_MAX_OCTETS))}
             </p>
           </>
         )}
@@ -201,10 +236,10 @@ export function UploadDropzone({ compact = false }: { compact?: boolean }) {
               <p className="mt-2 text-xs text-mist-300">
                 {etat === "envoi" ? (
                   <>
-                    Transfert en cours — <span className="tabular-nums">{pourcentage} %</span>
+                    {t.enCours} <span className="tabular-nums">{pourcentage} %</span>
                   </>
                 ) : (
-                  "Vérification du fichier..."
+                  t.verification
                 )}
               </p>
             </div>
@@ -216,7 +251,7 @@ export function UploadDropzone({ compact = false }: { compact?: boolean }) {
                 }}
                 className="mt-3 rounded-md border border-ink-700 px-3 py-1 text-xs text-mist-400 transition hover:text-mist-200"
               >
-                Annuler
+                {t.annuler}
               </button>
             )}
           </>
@@ -243,7 +278,7 @@ export function UploadDropzone({ compact = false }: { compact?: boolean }) {
               }}
               className="mt-3 rounded-md border border-ink-700 bg-ink-800 px-3 py-1.5 text-xs text-mist-200 transition hover:bg-ink-700"
             >
-              Choisir un autre fichier
+              {t.autre}
             </button>
           </>
         )}

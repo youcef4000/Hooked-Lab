@@ -1,9 +1,10 @@
+import type { Langue } from "./langue";
 import { appendFileSync, existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { randomInt } from "node:crypto";
 import path from "node:path";
 import { DATA_DIR, ensureDir } from "./paths";
 import { appliquerAbonnement, trouverParId } from "./comptes";
-import { ENGAGEMENTS, PALIERS, RECHARGES, creditsBonus } from "./tarifs";
+import { ENGAGEMENTS, PALIERS, RECHARGES, totalPalier } from "./tarifs";
 
 /* ============================================================================
    Codes d'activation.
@@ -31,8 +32,10 @@ export interface CodeActivation {
   palier: string;
   /** Duree ajoutee a l'abonnement, en jours. Une recharge n'en ajoute pas. */
   dureeJours: number;
-  /** Montant encaisse, en dinars : sert au chiffre d'affaires de l'admin. */
-  montantDzd: number;
+  /** Montant encaisse, en dollars : sert au chiffre d'affaires de l'admin. */
+  montantUsd?: number;
+  /** Ancienne grille en dinars : conserve pour les codes emis avant le passage au dollar. */
+  montantDzd?: number;
   creeLe: string;
   /** Note libre : "Karim 0661… BaridiMob 12/03". */
   note: string;
@@ -115,7 +118,7 @@ export function genererCodes(demande: DemandeCode): ResultatGeneration {
   let credits: number;
   let palier: string;
   let dureeJours: number;
-  let montantDzd: number;
+  let montantUsd: number;
 
   if (demande.type === "abonnement") {
     const p = PALIERS.find((x) => x.nom === demande.reference);
@@ -124,12 +127,10 @@ export function genererCodes(demande: DemandeCode): ResultatGeneration {
     const engagement = ENGAGEMENTS.find((e) => e.mois === (demande.mois ?? 1));
     if (!engagement) return { ok: false, message: "Durée d'engagement inconnue." };
 
-    const mensuel = Math.round((p.base * (1 - engagement.remise)) / 100) * 100;
-    credits =
-      p.creditsMensuels * engagement.mois + creditsBonus(p.creditsMensuels, engagement.moisBonus);
+    credits = p.creditsMensuels * engagement.mois;
     palier = p.nom;
-    dureeJours = engagement.mois * 30;
-    montantDzd = mensuel * engagement.mois;
+    dureeJours = engagement.mois === 12 ? 365 : engagement.mois * 30;
+    montantUsd = totalPalier(p, engagement.remise, engagement.mois);
   } else {
     const r = RECHARGES.find((x) => String(x.credits) === String(demande.reference));
     if (!r) return { ok: false, message: "Recharge inconnue." };
@@ -137,7 +138,7 @@ export function genererCodes(demande: DemandeCode): ResultatGeneration {
     palier = `Recharge ${r.credits}`;
     // Une recharge ne prolonge pas l'abonnement : elle depanne dans le mois.
     dureeJours = 0;
-    montantDzd = r.prix;
+    montantUsd = r.prix;
   }
 
   const existants = listerCodes();
@@ -158,7 +159,7 @@ export function genererCodes(demande: DemandeCode): ResultatGeneration {
       credits,
       palier,
       dureeJours,
-      montantDzd,
+      montantUsd,
       creeLe: new Date().toISOString(),
       note,
       utiliseLe: null,
@@ -187,19 +188,39 @@ export interface ResultatActivation {
  * creditement echoue, on relache le code — l'inverse permettrait a un
  * double-clic de crediter deux fois.
  */
-export function activerCode(codeBrut: string, utilisateurId: string): ResultatActivation {
-  const code = normaliserCode(codeBrut);
-  if (!code) return { ok: false, message: "Ce code n'a pas le bon format." };
+const MESSAGES_ACTIVATION = {
+  fr: {
+    format: "Ce code n'a pas le bon format.",
+    compte: "Compte introuvable.",
+    inconnu: "Ce code n'existe pas. Vérifie la saisie.",
+    annule: "Ce code a été annulé.",
+    utilise: "Ce code a déjà été utilisé.",
+    echec: "L'activation a échoué.",
+  },
+  en: {
+    format: "This code doesn't have the right format.",
+    compte: "Account not found.",
+    inconnu: "This code doesn't exist. Check what you typed.",
+    annule: "This code has been cancelled.",
+    utilise: "This code has already been used.",
+    echec: "Activation failed.",
+  },
+};
 
-  if (!trouverParId(utilisateurId)) return { ok: false, message: "Compte introuvable." };
+export function activerCode(codeBrut: string, utilisateurId: string, langue: Langue = "fr"): ResultatActivation {
+  const t = MESSAGES_ACTIVATION[langue];
+  const code = normaliserCode(codeBrut);
+  if (!code) return { ok: false, message: t.format };
+
+  if (!trouverParId(utilisateurId)) return { ok: false, message: t.compte };
 
   const codes = listerCodes();
   const i = codes.findIndex((c) => c.code === code);
-  if (i === -1) return { ok: false, message: "Ce code n'existe pas. Vérifie la saisie." };
+  if (i === -1) return { ok: false, message: t.inconnu };
 
   const c = codes[i];
-  if (c.annule) return { ok: false, message: "Ce code a été annulé." };
-  if (c.utiliseLe) return { ok: false, message: "Ce code a déjà été utilisé." };
+  if (c.annule) return { ok: false, message: t.annule };
+  if (c.utiliseLe) return { ok: false, message: t.utilise };
 
   codes[i].utiliseLe = new Date().toISOString();
   codes[i].utilisePar = utilisateurId;
@@ -217,7 +238,7 @@ export function activerCode(codeBrut: string, utilisateurId: string): ResultatAc
     codes[i].utiliseLe = null;
     codes[i].utilisePar = null;
     enregistrer(codes);
-    return { ok: false, message: resultat.message ?? "L'activation a échoué." };
+    return { ok: false, message: langue === "fr" ? (resultat.message ?? t.echec) : t.echec };
   }
 
   return { ok: true, credits: c.credits, palier: c.palier };
@@ -252,7 +273,7 @@ export function statistiquesCodes(codes: CodeActivation[]): StatsCodes {
     if (c.annule) annules++;
     else if (c.utiliseLe) {
       utilises++;
-      chiffreAffaires += c.montantDzd;
+      chiffreAffaires += c.montantUsd ?? 0;
     }
   }
 

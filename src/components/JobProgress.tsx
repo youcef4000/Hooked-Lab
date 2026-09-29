@@ -5,6 +5,42 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UploadDropzone } from "./UploadDropzone";
 import type { Job, JobStep } from "@/types/analysis";
+import { useT } from "./Langue";
+
+const TEXTES = {
+  fr: {
+    interrompue: "Analyse interrompue",
+    enCours: "Analyse en cours",
+    etapes: (f: number, t: number) => `${f} / ${t} étapes`,
+    connexion: "Connexion au traitement…",
+    videoKo: "Cette vidéo n'a pas pu être téléchargée",
+    telechargementKo: "Téléchargement impossible",
+    solution: "La solution la plus rapide",
+    solutionTexte:
+      "Enregistre la vidéo sur ton téléphone ou ton ordinateur, puis dépose-la ici. L'analyse sera identique — seules les statistiques du post (vues, likes) seront absentes du rapport.",
+    retour: "Retour à l'outil",
+    pasAbouti: "L'analyse n'a pas abouti",
+    perdue: "Connexion au suivi perdue. L'analyse continue peut-être en arrière-plan :",
+    recharger: "recharger la page",
+    attente: "Tu peux quitter cette page : l'analyse continue, et le rapport t'attendra dans ton historique.",
+  },
+  en: {
+    interrompue: "Analysis interrupted",
+    enCours: "Analysis in progress",
+    etapes: (f: number, t: number) => `${f} / ${t} steps`,
+    connexion: "Connecting to the job…",
+    videoKo: "This video could not be downloaded",
+    telechargementKo: "Download failed",
+    solution: "The fastest fix",
+    solutionTexte:
+      "Save the video on your phone or computer, then drop it here. The analysis will be identical — only the post stats (views, likes) will be missing from the report.",
+    retour: "Back to the tool",
+    pasAbouti: "The analysis did not complete",
+    perdue: "Lost the connection to the job. The analysis may still be running in the background:",
+    recharger: "reload the page",
+    attente: "You can leave this page: the analysis keeps running, and the report will wait for you in your history.",
+  },
+};
 
 function Icone({ statut }: { statut: JobStep["status"] }) {
   if (statut === "ok")
@@ -42,6 +78,7 @@ function Icone({ statut }: { statut: JobStep["status"] }) {
 
 export function JobProgress({ id }: { id: string }) {
   const router = useRouter();
+  const t = useT(TEXTES);
   const [job, setJob] = useState<Job | null>(null);
   const [deconnecte, setDeconnecte] = useState(false);
   const termine = useRef(false);
@@ -81,7 +118,7 @@ export function JobProgress({ id }: { id: string }) {
     <div className="mx-auto max-w-2xl">
       <div className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight text-mist-100">
-          {job?.status === "erreur" ? "Analyse interrompue" : "Analyse en cours"}
+          {job?.status === "erreur" ? t.interrompue : t.enCours}
         </h1>
         {job?.url && (
           <p className="mt-1 truncate text-sm text-mist-400" title={job.url}>
@@ -93,9 +130,7 @@ export function JobProgress({ id }: { id: string }) {
       {job?.status !== "erreur" && (
         <div className="mb-6">
           <div className="mb-1.5 flex justify-between text-xs text-mist-400">
-            <span>
-              {étapesFaites} / {total} étapes
-            </span>
+            <span>{t.etapes(étapesFaites, total)}</span>
             <span className="tabular-nums">{pct} %</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-ink-800">
@@ -104,6 +139,7 @@ export function JobProgress({ id }: { id: string }) {
               style={{ width: `${pct}%` }}
             />
           </div>
+          <p className="mt-2 text-xs text-mist-500">{t.attente}</p>
         </div>
       )}
 
@@ -138,7 +174,7 @@ export function JobProgress({ id }: { id: string }) {
             </li>
           ))}
           {!job && (
-            <li className="animate-pulse-soft text-sm text-mist-400">Connexion au traitement…</li>
+            <li className="animate-pulse-soft text-sm text-mist-400">{t.connexion}</li>
           )}
         </ol>
       </div>
@@ -148,7 +184,7 @@ export function JobProgress({ id }: { id: string }) {
       {job?.status === "erreur" && job.echecTelechargement && (
         <div className="mt-4 rounded-xl border border-ink-700 bg-ink-900 p-5">
           <p className="text-sm font-semibold text-mist-100">
-            {job.url ? "Cette vidéo n'a pas pu être téléchargée" : "Téléchargement impossible"}
+            {job.url ? t.videoKo : t.telechargementKo}
           </p>
           {job.url && (
             <p className="mt-1 truncate text-xs text-mist-400" title={job.url}>
@@ -158,12 +194,8 @@ export function JobProgress({ id }: { id: string }) {
           {/* Le detail technique est deja affiche sur l'etape en echec ci-dessus. */}
 
           <div className="mt-4 rounded-lg border border-brand-500/25 bg-brand-500/[0.06] px-4 py-3">
-            <p className="text-sm font-medium text-brand-300">La solution la plus rapide</p>
-            <p className="mt-1 text-xs leading-relaxed text-mist-300">
-              Enregistre la vidéo sur ton téléphone ou ton ordinateur, puis dépose-la ici.
-              L&apos;analyse sera identique — seules les statistiques du post (vues, likes) seront
-              absentes du rapport.
-            </p>
+            <p className="text-sm font-medium text-brand-300">{t.solution}</p>
+            <p className="mt-1 text-xs leading-relaxed text-mist-300">{t.solutionTexte}</p>
           </div>
 
           <div className="mt-4">
@@ -174,29 +206,29 @@ export function JobProgress({ id }: { id: string }) {
             href="/analyser"
             className="mt-4 inline-block text-xs text-mist-400 underline transition hover:text-mist-200"
           >
-            Retour à l&apos;accueil
+            {t.retour}
           </Link>
         </div>
       )}
 
       {job?.status === "erreur" && !job.echecTelechargement && (
         <div className="mt-4 rounded-xl border border-rose-warn/30 bg-rose-warn/10 p-5">
-          <p className="text-sm font-medium text-rose-warn">L&apos;analyse n&apos;a pas abouti</p>
+          <p className="text-sm font-medium text-rose-warn">{t.pasAbouti}</p>
           <p className="mt-1.5 text-sm leading-relaxed text-mist-200">{job.error}</p>
           <Link
             href="/analyser"
             className="mt-4 inline-block rounded-lg bg-ink-800 px-4 py-2 text-sm text-mist-100 transition hover:bg-ink-700"
           >
-            Retour à l&apos;accueil
+            {t.retour}
           </Link>
         </div>
       )}
 
       {deconnecte && job?.status !== "erreur" && (
         <div className="mt-4 rounded-lg border border-amber-glow/30 bg-amber-glow/10 px-4 py-3 text-sm text-amber-glow">
-          Connexion au suivi perdue. L&apos;analyse continue peut-être en arrière-plan :{" "}
+          {t.perdue}{" "}
           <button onClick={() => router.refresh()} className="underline">
-            recharger la page
+            {t.recharger}
           </button>
           .
         </div>

@@ -5,6 +5,7 @@ import path from "node:path";
 import { ffmpegPath, run } from "./bin";
 import { DATA_DIR, ensureDir } from "./paths";
 import { TAILLE_MAX_OCTETS, extensionDe } from "./upload-limites";
+import type { Langue } from "./langue";
 
 export {
   EXTENSIONS_ACCEPTEES,
@@ -36,10 +37,44 @@ export class UploadError extends Error {}
  * Ecrit le corps de la requete sur disque en flux, sans jamais charger les
  * 300 Mo en memoire. Interrompt et nettoie des que le quota est depasse.
  */
+/** Messages de depot, dans la langue de la personne qui depose. */
+const MESSAGES = {
+  fr: {
+    tropLourd: (limite: string) => `Fichier trop volumineux : la limite est ${limite}. Compresse la vidéo ou coupe-la avant de la déposer.`,
+    transfert: (detail: string) => `Le transfert du fichier a échoué : ${detail}`,
+    vide: "Le fichier reçu est vide.",
+    disque: "Le fichier n'a pas pu être enregistré sur le disque.",
+    pasVideo:
+      "Ce fichier n'est pas une vidéo lisible. Vérifie qu'il s'ouvre bien dans ton lecteur vidéo, et qu'il ne s'agit pas d'un autre type de document renommé en .mp4.",
+    audioSeul: "Ce fichier ne contient qu'une piste audio. Dépose la vidéo complète.",
+    sansVideo: "Aucune piste vidéo détectée dans ce fichier. Vérifie qu'il s'agit bien d'une vidéo.",
+    tronquee: "La vidéo semble vide ou tronquée (durée nulle). Le transfert a peut-être été interrompu : réessaie.",
+    pasImage:
+      "Ce fichier n'est pas une image lisible. Vérifie qu'elle s'ouvre bien dans une visionneuse, et qu'il ne s'agit pas d'un autre type de document renommé en .jpg ou .png.",
+    sansImage: "Aucune image détectée dans ce fichier. Vérifie qu'il s'agit bien d'une créative statique.",
+  },
+  en: {
+    tropLourd: (limite: string) => `File too large: the limit is ${limite}. Compress or trim the video before uploading it.`,
+    transfert: (detail: string) => `The file upload failed: ${detail}`,
+    vide: "The uploaded file is empty.",
+    disque: "The file could not be saved to disk.",
+    pasVideo:
+      "This file is not a readable video. Check that it opens in your video player and that it is not another kind of document renamed to .mp4.",
+    audioSeul: "This file only contains an audio track. Upload the full video.",
+    sansVideo: "No video track found in this file. Check that it really is a video.",
+    tronquee: "The video looks empty or truncated (zero duration). The upload may have been interrupted: try again.",
+    pasImage:
+      "This file is not a readable image. Check that it opens in an image viewer and that it is not another kind of document renamed to .jpg or .png.",
+    sansImage: "No image found in this file. Check that it really is a static creative.",
+  },
+} as const;
+
 export async function ecrireFluxSurDisque(
   corps: ReadableStream<Uint8Array>,
   nomOriginal: string,
+  langue: Langue = "fr",
 ): Promise<{ chemin: string; taille: number }> {
+  const t = MESSAGES[langue];
   ensureDir(UPLOADS_DIR);
   purgerUploadsAnciens();
 
@@ -53,10 +88,7 @@ export async function ecrireFluxSurDisque(
       const bloc = morceau as Buffer;
       taille += bloc.length;
       if (taille > TAILLE_MAX_OCTETS) {
-        throw new UploadError(
-          `Fichier trop volumineux : la limite est ${formatTaille(TAILLE_MAX_OCTETS)}. ` +
-            "Compresse la video ou coupe-la avant de la deposer.",
-        );
+        throw new UploadError(t.tropLourd(formatTaille(TAILLE_MAX_OCTETS)));
       }
       if (!sortie.write(bloc)) {
         // Le tampon d'ecriture est plein : on attend qu'il se vide.
@@ -70,12 +102,12 @@ export async function ecrireFluxSurDisque(
     sortie.destroy();
     supprimerFichier(chemin);
     if (err instanceof UploadError) throw err;
-    throw new UploadError(`Le transfert du fichier a echoue : ${(err as Error).message}`);
+    throw new UploadError(t.transfert((err as Error).message));
   }
 
   if (taille === 0) {
     supprimerFichier(chemin);
-    throw new UploadError("Le fichier recu est vide.");
+    throw new UploadError(t.vide);
   }
 
   return { chemin, taille };
@@ -95,9 +127,11 @@ export interface InfosVideo {
  */
 export async function validerVideo(
   chemin: string,
+  langue: Langue = "fr",
 ): Promise<{ ok: true; infos: InfosVideo } | { ok: false; message: string }> {
+  const t = MESSAGES[langue];
   if (!existsSync(chemin)) {
-    return { ok: false, message: "Le fichier n'a pas pu etre enregistre sur le disque." };
+    return { ok: false, message: t.disque };
   }
 
   const res = await run(ffmpegPath(), ["-hide_banner", "-i", chemin], { timeoutMs: 60_000 });
@@ -114,18 +148,14 @@ export async function validerVideo(
   ) {
     return {
       ok: false,
-      message:
-        "Ce fichier n'est pas une video lisible. Verifie qu'il s'ouvre bien dans ton lecteur video, " +
-        "et qu'il ne s'agit pas d'un autre type de document renomme en .mp4.",
+      message: t.pasVideo,
     };
   }
 
   if (!/Stream #\d+:\d+.*: Video:/i.test(sortie)) {
     return {
       ok: false,
-      message: bas.includes("audio:")
-        ? "Ce fichier ne contient qu'une piste audio. Depose la video complete."
-        : "Aucune piste video detectee dans ce fichier. Verifie qu'il s'agit bien d'une video.",
+      message: bas.includes("audio:") ? t.audioSeul : t.sansVideo,
     };
   }
 
@@ -137,8 +167,7 @@ export async function validerVideo(
   if (!duree || duree < 0.5) {
     return {
       ok: false,
-      message:
-        "La video semble vide ou tronquee (duree nulle). Le transfert a peut-etre ete interrompu : reessaie.",
+      message: t.tronquee,
     };
   }
 
@@ -163,9 +192,11 @@ export async function validerVideo(
  */
 export async function validerImage(
   chemin: string,
+  langue: Langue = "fr",
 ): Promise<{ ok: true; infos: InfosVideo } | { ok: false; message: string }> {
+  const t = MESSAGES[langue];
   if (!existsSync(chemin)) {
-    return { ok: false, message: "Le fichier n'a pas pu etre enregistre sur le disque." };
+    return { ok: false, message: t.disque };
   }
 
   const res = await run(ffmpegPath(), ["-hide_banner", "-i", chemin], { timeoutMs: 60_000 });
@@ -180,16 +211,14 @@ export async function validerImage(
   ) {
     return {
       ok: false,
-      message:
-        "Ce fichier n'est pas une image lisible. Verifie qu'elle s'ouvre bien dans une visionneuse, " +
-        "et qu'il ne s'agit pas d'un autre type de document renomme en .jpg ou .png.",
+      message: t.pasImage,
     };
   }
 
   if (!/Stream #\d+:\d+.*: Video:/i.test(sortie)) {
     return {
       ok: false,
-      message: "Aucune image detectee dans ce fichier. Verifie qu'il s'agit bien d'une creative statique.",
+      message: t.sansImage,
     };
   }
 

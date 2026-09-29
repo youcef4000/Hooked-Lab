@@ -40,7 +40,7 @@ export interface Achat {
   description: string;
   /** Montant en unites (19 = 19 $), converti en centimes ici. */
   montant: number;
-  devise: Exclude<Devise, "DZD">;
+  devise: Devise;
   utilisateurId: string;
   email: string;
   /** Ce que le webhook devra accorder : relu tel quel, jamais recalcule cote client. */
@@ -59,7 +59,7 @@ export async function creerSessionPaiement(achat: Achat): Promise<{ url: string;
     customer_email: achat.email,
     success_url: achat.urlSucces,
     cancel_url: achat.urlAnnulation,
-    locale: "fr",
+    locale: "auto",
     line_items: {
       0: {
         quantity: 1,

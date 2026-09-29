@@ -2,6 +2,30 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { DATA_DIR, ensureDir } from "./paths";
+import type { Langue } from "./langue";
+
+const MESSAGES = {
+  fr: {
+    email: "Adresse email invalide.",
+    telephone: "Numéro invalide. Indique-le avec l'indicatif du pays, par exemple +33 6 12 34 56 78 ou +1 415 555 0100.",
+    nom: "Entre ton nom complet.",
+    motDePasse: "Le mot de passe doit faire 8 caractères minimum.",
+    emailPris: "Un compte existe déjà avec cette adresse.",
+    telephonePris: "Un compte existe déjà avec ce numéro.",
+    refus: "Email ou mot de passe incorrect.",
+    suspendu: "Ce compte est suspendu. Contacte-nous sur WhatsApp.",
+  },
+  en: {
+    email: "Invalid email address.",
+    telephone: "Invalid number. Include the country code, e.g. +1 415 555 0100 or +44 7700 900123.",
+    nom: "Enter your full name.",
+    motDePasse: "The password must be at least 8 characters long.",
+    emailPris: "An account already exists with this email.",
+    telephonePris: "An account already exists with this number.",
+    refus: "Incorrect email or password.",
+    suspendu: "This account is suspended. Contact us on WhatsApp.",
+  },
+} as const;
 
 /* ============================================================================
    Comptes utilisateurs.
@@ -100,16 +124,21 @@ export function emailValide(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
+/**
+ * Numero au format international (E.164 : +indicatif puis le numero).
+ * Un numero algerien saisi a l'ancienne (06 61 22 33 44) est complete en
+ * +213 : c'est la saisie naturelle de la majorite des premiers abonnes.
+ */
 export function normaliserTelephone(brut: string): string {
   let n = String(brut).replace(/[\s.\-()]/g, "");
-  if (n.startsWith("+213")) n = "0" + n.slice(4);
-  else if (n.startsWith("00213")) n = "0" + n.slice(5);
-  else if (n.startsWith("213") && n.length === 12) n = "0" + n.slice(3);
+  if (n.startsWith("00")) n = "+" + n.slice(2);
+  if (/^0[567]\d{8}$/.test(n)) n = "+213" + n.slice(1);
+  else if (/^213[567]\d{8}$/.test(n)) n = "+" + n;
   return n;
 }
 
 export function telephoneValide(brut: string): boolean {
-  return /^0[567]\d{8}$/.test(normaliserTelephone(brut));
+  return /^\+[1-9]\d{7,14}$/.test(normaliserTelephone(brut));
 }
 
 /* ----------------------------------------------------------- operations */
@@ -120,33 +149,39 @@ export interface ResultatCompte {
   utilisateur?: Utilisateur;
 }
 
-export function creerCompte(donnees: {
-  email: string;
-  motDePasse: string;
-  telephone: string;
-  nom: string;
-}): ResultatCompte {
+export function creerCompte(
+  donnees: {
+    email: string;
+    motDePasse: string;
+    telephone: string;
+    nom: string;
+  },
+  langue: Langue = "fr",
+): ResultatCompte {
+  const t = MESSAGES[langue];
   const email = normaliserEmail(donnees.email);
   const telephone = normaliserTelephone(donnees.telephone);
   const nom = String(donnees.nom ?? "").trim().slice(0, 80);
 
-  if (!emailValide(email)) return { ok: false, message: "Adresse email invalide." };
+  if (!emailValide(email)) return { ok: false, message: t.email };
   if (!telephoneValide(telephone)) {
-    return { ok: false, message: "Numéro invalide. Il doit commencer par 05, 06 ou 07 et faire 10 chiffres." };
+    return { ok: false, message: t.telephone };
   }
-  if (nom.length < 3) return { ok: false, message: "Entre ton nom complet." };
+  if (nom.length < 3) return { ok: false, message: t.nom };
   if (String(donnees.motDePasse ?? "").length < 8) {
-    return { ok: false, message: "Le mot de passe doit faire 8 caractères minimum." };
+    return { ok: false, message: t.motDePasse };
   }
 
   const utilisateurs = listerUtilisateurs();
   if (utilisateurs.some((u) => u.email === email)) {
-    return { ok: false, message: "Un compte existe déjà avec cette adresse." };
+    return { ok: false, message: t.emailPris };
   }
   // Le telephone est unique aussi : c'est par lui que passe l'activation, et
   // deux comptes sur un meme numero rendraient l'appel ambigu.
-  if (utilisateurs.some((u) => u.telephone === telephone)) {
-    return { ok: false, message: "Un compte existe déjà avec ce numéro." };
+  // Les comptes anciens gardent un numero algerien local : on compare
+  // tout au format international.
+  if (utilisateurs.some((u) => normaliserTelephone(u.telephone) === telephone)) {
+    return { ok: false, message: t.telephonePris };
   }
 
   const utilisateur: Utilisateur = {
@@ -169,18 +204,19 @@ export function creerCompte(donnees: {
   return { ok: true, utilisateur };
 }
 
-export function authentifier(email: string, motDePasse: string): ResultatCompte {
+export function authentifier(email: string, motDePasse: string, langue: Langue = "fr"): ResultatCompte {
+  const t = MESSAGES[langue];
   const cible = normaliserEmail(email);
   const utilisateurs = listerUtilisateurs();
   const i = utilisateurs.findIndex((u) => u.email === cible);
 
   // Meme message qu'il s'agisse d'un email inconnu ou d'un mot de passe faux :
   // sinon on revele quelles adresses ont un compte.
-  const refus = { ok: false as const, message: "Email ou mot de passe incorrect." };
+  const refus = { ok: false as const, message: t.refus };
   if (i === -1) return refus;
   if (!motDePasseCorrespond(motDePasse, utilisateurs[i].motDePasse)) return refus;
   if (utilisateurs[i].suspendu) {
-    return { ok: false, message: "Ce compte est suspendu. Contacte-nous sur WhatsApp." };
+    return { ok: false, message: t.suspendu };
   }
 
   utilisateurs[i].derniereConnexion = new Date().toISOString();

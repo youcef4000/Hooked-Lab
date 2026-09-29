@@ -5,10 +5,11 @@ import { ImageResponse } from "next/og";
 
    Un lien partage sans image apparait nu, et se fait ignorer. Celle-ci est
    generee une fois a la construction, aux couleurs du site : le monogramme
-   en barres d'or, le nom, la promesse.
+   en barres d'or, le nom, la promesse. En anglais : les robots des reseaux
+   sociaux n'envoient pas de langue, et l'outil vise l'international.
    ========================================================================== */
 
-export const alt = "Hooked Lab — Décortique les créatives qui vendent";
+export const alt = "Hooked Lab — Reverse-engineer the ads that sell";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -61,10 +62,10 @@ export default function ImageApercu() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <div style={{ display: "flex", fontSize: 66, fontWeight: 600, lineHeight: 1.06, letterSpacing: -2, maxWidth: 980 }}>
-            Chaque créative virale cache un produit gagnant.
+            Every viral ad hides a winning product.
           </div>
           <div style={{ display: "flex", gap: 14, fontSize: 26, color: "#b6afbd" }}>
-            {["Script", "Angles", "Sourcing 1688", "Rentabilité COD"].map((t) => (
+            {["Script", "Angles", "1688 sourcing", "Profit", "Ready-to-run ads"].map((t) => (
               <div
                 key={t}
                 style={{

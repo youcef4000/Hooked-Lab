@@ -1,5 +1,7 @@
 "use client";
 
+import { useLangue } from "../Langue";
+
 /* ============================================================================
    Visuels de la landing.
 
@@ -102,75 +104,15 @@ export function ProduitMontre({ className = "" }: { className?: string }) {
 
 /* ------------------------------------------------------------------------- */
 
-export interface Resultat {
-  produit: string;
-  score: number;
-  achat: string;
-  vente: string;
-  profit: string;
-  hook: number;
-  categorie: string;
-}
-
-/**
- * Carte de resultat d'analyse. C'est ce qui defile dans le bandeau : montrer
- * le livrable convertit, la ou des vignettes abstraites ne disaient rien.
- */
-export function CarteResultat({ r }: { r: Resultat }) {
-  const ton =
-    r.score >= 75 ? "text-jade" : r.score >= 55 ? "text-brand-400" : "text-amber-glow";
-
-  return (
-    <article className="w-[290px] shrink-0 rounded-xl border border-ink-700 bg-ink-900 p-4 transition-colors duration-300 hover:border-brand-500/45">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-mist-100">{r.produit}</p>
-          <p className="mt-0.5 text-[11px] uppercase tracking-wide text-mist-400">{r.categorie}</p>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className={`text-xl font-bold tabular-nums ${ton}`}>{r.score}</div>
-          <div className="text-[10px] text-mist-400">/100</div>
-        </div>
-      </div>
-
-      {/* jauge de score */}
-      <div className="mt-3 h-1 overflow-hidden rounded-full bg-ink-800">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-[#8c6b3f] to-[#f2dfa0]"
-          style={{ width: `${r.score}%` }}
-        />
-      </div>
-
-      <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-ink-800 pt-3 text-center">
-        <div>
-          <dt className="text-[10px] uppercase tracking-wide text-mist-400">Achat</dt>
-          <dd className="mt-0.5 text-xs font-medium tabular-nums text-mist-200">{r.achat}</dd>
-        </div>
-        <div>
-          <dt className="text-[10px] uppercase tracking-wide text-mist-400">Vente</dt>
-          <dd className="mt-0.5 text-xs font-medium tabular-nums text-mist-200">{r.vente}</dd>
-        </div>
-        <div>
-          <dt className="text-[10px] uppercase tracking-wide text-mist-400">Profit</dt>
-          <dd className="mt-0.5 text-xs font-semibold tabular-nums text-jade">{r.profit}</dd>
-        </div>
-      </dl>
-
-      <div className="mt-3 flex items-center gap-1.5">
-        <span className="rounded-full bg-brand-500/12 px-2 py-0.5 text-[10px] font-medium text-brand-300 ring-1 ring-inset ring-brand-500/25">
-          Hook {r.hook}/10
-        </span>
-        <span className="rounded-full bg-ink-800 px-2 py-0.5 text-[10px] text-mist-300">
-          Sourcing 1688
-        </span>
-        <span className="rounded-full bg-ink-800 px-2 py-0.5 text-[10px] text-mist-300">Darija</span>
-      </div>
-    </article>
-  );
-}
+const LEGENDES = {
+  fr: ["ARRÊTE DE PERDRE TON ARGENT", "CE PRODUIT SE VEND SEUL", "LIVRAISON OFFERTE AUJOURD'HUI"],
+  en: ["STOP WASTING YOUR MONEY", "THIS PRODUCT SELLS ITSELF", "FREE SHIPPING TODAY"],
+};
 
 /** Creative publicitaire simulee, avec le produit reel a l'interieur. */
-export function MockPhone({ className = "" }: { className?: string }) {
+export function MockPhone({ className = "", prix }: { className?: string; /** Prix du sticker, sinon celui de la langue. */ prix?: string }) {
+  const langue = useLangue();
+  const [l1, l2, l3] = LEGENDES[langue];
   return (
     <div
       className={`relative aspect-[9/16] w-full overflow-hidden rounded-[26px] border border-ink-600 bg-ink-950 shadow-2xl shadow-black/70 ring-1 ring-brand-500/10 ${className}`}
@@ -214,7 +156,7 @@ export function MockPhone({ className = "" }: { className?: string }) {
         style={{ "--d": "0ms" } as React.CSSProperties}
       >
         <span className="inline-block rounded-lg bg-black/80 px-3 py-1.5 text-[13px] font-bold text-white ring-1 ring-white/10">
-          ARRÊTE DE PERDRE TON ARGENT
+          {l1}
         </span>
       </div>
       <div
@@ -222,7 +164,7 @@ export function MockPhone({ className = "" }: { className?: string }) {
         style={{ "--d": "3000ms" } as React.CSSProperties}
       >
         <span className="inline-block rounded-lg bg-black/80 px-3 py-1.5 text-[13px] font-bold text-champagne ring-1 ring-brand-500/25">
-          CE PRODUIT SE VEND SEUL
+          {l2}
         </span>
       </div>
       <div
@@ -230,14 +172,14 @@ export function MockPhone({ className = "" }: { className?: string }) {
         style={{ "--d": "6000ms" } as React.CSSProperties}
       >
         <span className="inline-block rounded-lg bg-black/80 px-3 py-1.5 text-[13px] font-bold text-white ring-1 ring-white/10">
-          LIVRAISON 58 WILAYAS
+          {l3}
         </span>
       </div>
 
       {/* sticker prix */}
       <div className="mock-sticker absolute right-3 top-[70%]">
         <span className="inline-block rounded-xl bg-gradient-to-br from-[#f2dfa0] to-[#c9a227] px-3 py-2 text-sm font-black text-[#120e04] shadow-lg">
-          4 900 DA
+          {prix ?? (langue === "fr" ? "29,90 €" : "$29.99")}
         </span>
       </div>
 

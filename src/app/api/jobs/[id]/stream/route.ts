@@ -1,6 +1,7 @@
 import { getJob, subscribe } from "@/lib/jobs";
 import type { Job } from "@/types/analysis";
 import { lecteurCourant, peutVoir } from "@/lib/acces-analyses";
+import { langueCourante } from "@/lib/langue-serveur";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 /** Flux Server-Sent Events qui pousse la progression du job a l'interface. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const fr = (await langueCourante()) === "fr";
   const encoder = new TextEncoder();
   // Un inconnu recoit le meme evenement qu'une analyse expiree.
   const autorise = peutVoir(id, await lecteurCourant());
@@ -73,8 +75,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           steps: [],
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          error:
-            "Cette analyse a été interrompue, probablement par une mise à jour du service. Les crédits éventuellement débités t'ont été rendus : relance-la.",
+          error: fr
+            ? "Cette analyse n'est plus disponible. Si des crédits avaient été débités, ils t'ont été rendus : relance-la."
+            : "This analysis is no longer available. Any credits charged have been returned to you: run it again.",
         });
         setTimeout(close, 100);
       }

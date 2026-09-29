@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { creerCompte, versPublic } from "@/lib/comptes";
 import { COOKIE_SESSION, DUREE_COOKIE, creerJeton } from "@/lib/session";
 import { creerLimiteur, ipClient } from "@/lib/limiteur";
+import { langueCourante } from "@/lib/langue-serveur";
 
 /* Creation d'un compte. L'inscription est libre ; c'est l'activation par code
    qui donne acces aux analyses. */
@@ -10,9 +11,11 @@ import { creerLimiteur, ipClient } from "@/lib/limiteur";
 const tropDeRequetes = creerLimiteur("inscription", 10 * 60_000, 5);
 
 export async function POST(requete: Request): Promise<Response> {
+  const langue = await langueCourante();
+  const fr = langue === "fr";
   if (tropDeRequetes(ipClient(requete))) {
     return Response.json(
-      { ok: false, message: "Trop de tentatives. Réessaie dans quelques minutes." },
+      { ok: false, message: fr ? "Trop de tentatives. Réessaie dans quelques minutes." : "Too many attempts. Try again in a few minutes." },
       { status: 429 },
     );
   }
@@ -21,7 +24,7 @@ export async function POST(requete: Request): Promise<Response> {
   try {
     corps = (await requete.json()) as typeof corps;
   } catch {
-    return Response.json({ ok: false, message: "Requête illisible." }, { status: 400 });
+    return Response.json({ ok: false, message: fr ? "Requête illisible." : "Unreadable request." }, { status: 400 });
   }
 
   const resultat = creerCompte({
@@ -29,7 +32,7 @@ export async function POST(requete: Request): Promise<Response> {
     motDePasse: String(corps.motDePasse ?? ""),
     telephone: String(corps.telephone ?? ""),
     nom: String(corps.nom ?? ""),
-  });
+  }, langue);
 
   if (!resultat.ok || !resultat.utilisateur) {
     return Response.json({ ok: false, message: resultat.message }, { status: 422 });
