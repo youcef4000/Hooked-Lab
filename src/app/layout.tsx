@@ -41,7 +41,7 @@ const TEXTES = {
 
 /**
  * Metadonnees calculees a chaque requete : l'adresse de base vient de la
- * requete elle-meme (juste en .onrender.com comme sur le nom de domaine),
+ * requete elle-meme (juste en .workers.dev comme sur le nom de domaine),
  * et les textes suivent la langue du visiteur.
  */
 export async function generateMetadata(): Promise<Metadata> {
@@ -77,7 +77,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LangueProvider langue={langue}>
           {children}
           <Suspense fallback={null}>
-            <Pixels />
+            <Pixels
+              meta={process.env.META_PIXEL_ID ?? process.env.NEXT_PUBLIC_META_PIXEL_ID}
+              tiktok={process.env.TIKTOK_PIXEL_ID ?? process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID}
+            />
           </Suspense>
         </LangueProvider>
       </body>

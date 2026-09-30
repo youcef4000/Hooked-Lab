@@ -1,3 +1,4 @@
+import { EMAIL_SUPPORT } from "./public";
 import { randomUUID } from "node:crypto";
 import { analyseCreative, analysePackDZ } from "./analysis";
 import { buildSourcingLinks } from "./sourcing";
@@ -66,12 +67,12 @@ function messageClient(err: unknown, etape: string | undefined, credits: number,
   }
   if (err instanceof ClaudeError) {
     return fr
-      ? `Le service d'analyse est momentanément indisponible.${rendu} Réessaie dans quelques minutes ; si ça persiste, écris-nous sur WhatsApp.`
-      : `The analysis service is temporarily unavailable.${rendu} Try again in a few minutes; if it persists, message us on WhatsApp.`;
+      ? `Le service d'analyse est momentanément indisponible.${rendu} Réessaie dans quelques minutes ; si ça persiste, écris-nous à ${EMAIL_SUPPORT}.`
+      : `The analysis service is temporarily unavailable.${rendu} Try again in a few minutes; if it persists, email us at ${EMAIL_SUPPORT}.`;
   }
   return fr
-    ? `L'analyse n'a pas pu aboutir à cause d'une erreur technique de notre côté.${rendu} Réessaie, ou écris-nous sur WhatsApp.`
-    : `The analysis could not be completed because of a technical error on our side.${rendu} Try again, or message us on WhatsApp.`;
+    ? `L'analyse n'a pas pu aboutir à cause d'une erreur technique de notre côté.${rendu} Réessaie, ou écris-nous à ${EMAIL_SUPPORT}.`
+    : `The analysis could not be completed because of a technical error on our side.${rendu} Try again, or email us at ${EMAIL_SUPPORT}.`;
 }
 
 /**
@@ -385,7 +386,7 @@ export function etatFileAnalyses(): { enCours: number; enAttente: number; maximu
    (SIGTERM). Plutot que de mourir sur-le-champ en coupant les analyses en
    cours, le serveur refuse les nouvelles analyses (message clair, rien n'est
    debite), laisse terminer celles qui tournent et celles deja en file, puis
-   s'arrete. Voir demarrage.ts et render.yaml (maxShutdownDelaySeconds).
+   s'arrete. Voir demarrage.ts (DELAI_ARRET_S) et cloudflare/worker.ts.
    ========================================================================== */
 
 const etatArret = globalThis as unknown as { __hklArret?: boolean };

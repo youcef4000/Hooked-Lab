@@ -9,8 +9,10 @@ import { useEffect, useRef } from "react";
 
    Sur Shopify, le pixel se colle dans un champ du back-office. Ici il n'y a
    pas de back-office : le pixel est un bout de JavaScript charge par
-   l'application elle-meme, et les identifiants viennent de .env.local. Sans
-   identifiant, rien n'est charge — le site reste propre en developpement.
+   l'application elle-meme. Les identifiants (META_PIXEL_ID, TIKTOK_PIXEL_ID)
+   sont lus par le serveur a chaque requete et passes ici : on les change
+   chez l'hebergeur sans reconstruire le site. Sans identifiant, rien n'est
+   charge — le site reste propre en developpement.
 
    Une particularite qui n'existe pas sur Shopify : cette application ne
    recharge pas la page quand on navigue. Le pixel n'enverrait donc qu'un seul
@@ -25,10 +27,12 @@ declare global {
   }
 }
 
-const META = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? "";
-const TIKTOK = process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID ?? "";
+/** Un identifiant de pixel n'est fait que de lettres et de chiffres : rien d'autre n'entre dans le script. */
+const propre = (id: string | undefined) => (id && /^[A-Za-z0-9]{5,40}$/.test(id) ? id : "");
 
-export function Pixels() {
+export function Pixels({ meta, tiktok }: { meta?: string; tiktok?: string }) {
+  const META = propre(meta);
+  const TIKTOK = propre(tiktok);
   const chemin = usePathname();
   const premier = useRef(true);
 

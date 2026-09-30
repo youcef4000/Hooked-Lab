@@ -6,7 +6,6 @@ import { AnalyzeForm } from "../AnalyzeForm";
 import { CarteVivante, Reveal } from "../Reveal";
 import { SelecteurMarche } from "../Marche";
 import { useLangue, useT } from "../Langue";
-import { CARTE_ACTIVE } from "@/lib/public";
 import { marche as trouverMarche } from "@/lib/marches";
 import { locale } from "@/lib/langue";
 import type { ReportSummary } from "@/types/analysis";
@@ -34,7 +33,7 @@ const TEXTES = {
     puces: ["3 minutes par analyse", "Vidéos et images", "US · UK · Europe · Australie · Algérie"],
     etapesTitre: "Ce qui se passe pendant que tu attends",
     etapes: [
-      { n: "01", titre: "Tu déposes", texte: "Une vidéo TikTok, un reel Instagram, une image publicitaire. Fichier ou lien.", detail: "mp4 · mov · webm · jpg · png — jusqu'à 300 Mo" },
+      { n: "01", titre: "Tu déposes", texte: "Une vidéo TikTok, un reel Instagram, une image publicitaire. Fichier ou lien.", detail: "mp4 · mov · webm · jpg · png — jusqu'à 95 Mo" },
       { n: "02", titre: "L'IA décortique", texte: "Audio transcrit, plans détectés, script reconstitué, angles de persuasion notés un par un.", detail: "environ 3 minutes" },
       { n: "03", titre: "Tu reçois le dossier", texte: "Produit identifié chez le fournisseur, rentabilité calculée pour ton marché, annonces prêtes.", detail: "sourcing · rentabilité · annonces Meta" },
     ],
@@ -64,9 +63,7 @@ const TEXTES = {
     exemples: "Exemples de dossiers",
     exemplesIntro: "Ouvre-en un : c'est exactement ce que tu recevras.",
     ctaTitre: "La prochaine créative que tu vois passer peut devenir ton produit gagnant.",
-    ctaTexte: CARTE_ACTIVE
-      ? "Crée ton compte, choisis ta formule, et ta première analyse part dans la minute."
-      : "Crée ton compte : on t'active dans l'heure, et tu lances ta première analyse.",
+    ctaTexte: "Crée ton compte, choisis ta formule, et ta première analyse part dans la minute.",
     creer: "Créer mon compte",
     formules: "Voir les formules",
   },
@@ -80,7 +77,7 @@ const TEXTES = {
     puces: ["3 minutes per analysis", "Videos and images", "US · UK · Europe · Australia · Algeria"],
     etapesTitre: "What happens while you wait",
     etapes: [
-      { n: "01", titre: "You upload", texte: "A TikTok video, an Instagram reel, an image ad. File or link.", detail: "mp4 · mov · webm · jpg · png — up to 300 MB" },
+      { n: "01", titre: "You upload", texte: "A TikTok video, an Instagram reel, an image ad. File or link.", detail: "mp4 · mov · webm · jpg · png — up to 95 MB" },
       { n: "02", titre: "The AI breaks it down", texte: "Audio transcribed, shots detected, script rebuilt, persuasion angles scored one by one.", detail: "about 3 minutes" },
       { n: "03", titre: "You get the file", texte: "Product found at the supplier, profitability computed for your market, ads ready to run.", detail: "sourcing · profitability · Meta ads" },
     ],
@@ -110,9 +107,7 @@ const TEXTES = {
     exemples: "Sample reports",
     exemplesIntro: "Open one: it's exactly what you'll get.",
     ctaTitre: "The next creative you scroll past could be your next winning product.",
-    ctaTexte: CARTE_ACTIVE
-      ? "Create your account, pick your plan, and your first analysis starts within a minute."
-      : "Create your account: we activate you within the hour, then you run your first analysis.",
+    ctaTexte: "Create your account, pick your plan, and your first analysis starts within a minute.",
     creer: "Create my account",
     formules: "See the plans",
   },

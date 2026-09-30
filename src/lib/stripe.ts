@@ -9,9 +9,11 @@ import type { Devise } from "./tarifs";
    cartes RedotPay —, Apple Pay et Google Pay selon ce qui est active dans
    le tableau de bord Stripe.
 
-   Le credit n'est JAMAIS accorde sur la page de retour (un client pourrait
-   l'ouvrir sans avoir paye) : seulement sur l'evenement signe que Stripe
-   envoie au webhook, une fois le paiement confirme.
+   Acces immediat : au retour de la page de paiement, le serveur relit la
+   session directement chez Stripe (avec la cle secrete) et accorde l'achat
+   si elle est payee et appartient bien au compte connecte. Le webhook signe
+   fait la meme chose en parallele ; l'achat n'est accorde qu'une fois, grace
+   a l'identifiant de session. Rien ne repose sur ce que le navigateur dit.
 
    Appels REST directs plutot que le SDK : deux requetes et une signature,
    pas de dependance supplementaire a maintenir.
@@ -85,6 +87,28 @@ export async function creerSessionPaiement(achat: Achat): Promise<{ url: string;
     throw new Error("Le paiement par carte est momentanément indisponible.");
   }
   return { url: donnees.url, id: donnees.id };
+}
+
+export interface SessionLue {
+  id: string;
+  client_reference_id?: string | null;
+  payment_status?: string;
+  amount_total?: number | null;
+  currency?: string | null;
+  metadata?: Record<string, string> | null;
+}
+
+/** Relit une session de paiement chez Stripe. null si elle est introuvable. */
+export async function lireSession(id: string): Promise<SessionLue | null> {
+  const cle = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!cle || !/^cs_(test|live)_[A-Za-z0-9]{10,200}$/.test(id)) return null;
+  try {
+    const res = await fetch(`${API}/checkout/sessions/${id}`, { headers: { Authorization: `Bearer ${cle}` } });
+    if (!res.ok) return null;
+    return (await res.json()) as SessionLue;
+  } catch {
+    return null;
+  }
 }
 
 /**

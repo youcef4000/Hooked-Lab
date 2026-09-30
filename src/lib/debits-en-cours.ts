@@ -3,6 +3,7 @@ import path from "node:path";
 import { DATA_DIR, ensureDir } from "./paths";
 import { crediter } from "./comptes";
 import { journaliser } from "./codes";
+import { oublier, sauvegarder } from "./sauvegarde";
 
 /* ============================================================================
    Debits en vol.
@@ -39,12 +40,15 @@ export function noterDebit(analyseId: string, utilisateurId: string | undefined,
   const temporaire = `${f}.tmp`;
   writeFileSync(temporaire, JSON.stringify(debit), "utf8");
   renameSync(temporaire, f);
+  sauvegarder(f);
 }
 
 /** L'analyse est terminee (reussie, ou echouee et remboursee) : plus rien a rendre. */
 export function solderDebit(analyseId: string): void {
   const f = fichier(analyseId);
-  if (f) rmSync(f, { force: true });
+  if (!f) return;
+  rmSync(f, { force: true });
+  oublier(f);
 }
 
 /** Appele une fois au demarrage : rend les credits des analyses interrompues. */
@@ -69,6 +73,7 @@ export function rembourserDebitsOrphelins(): number {
       /* fichier illisible : on le retire pour ne pas bloquer les suivants */
     }
     rmSync(f, { force: true });
+    oublier(f);
   }
   return rendus;
 }

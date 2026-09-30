@@ -1,14 +1,15 @@
 import { accessSync, constants } from "node:fs";
 import { DATA_DIR, ensureDir } from "@/lib/paths";
+import { verifierReglages } from "@/lib/demarrage";
 
 export const dynamic = "force-dynamic";
 
 /* ============================================================================
    Sonde de sante pour l'hebergeur.
 
-   Render interroge cette adresse toutes les quelques secondes : si elle ne
-   repond plus, il redemarre l'application ; pendant une mise a jour, il
-   attend qu'elle reponde avant de basculer le trafic sur la nouvelle version.
+   Le Worker Cloudflare l'appelle toutes les quelques minutes (tache planifiee)
+   pour garder le conteneur eveille : le premier visiteur n'attend jamais un
+   demarrage a froid.
 
    Elle ne verifie que ce qui fait tomber le service : le processus repond,
    et le disque de donnees est accessible en ecriture. Jamais d'appel a une
@@ -16,7 +17,9 @@ export const dynamic = "force-dynamic";
    clients. Le diagnostic complet reste sur /api/diagnostic.
    ========================================================================== */
 
-export function GET(): Response {
+export function GET(requete: Request): Response {
+  // Reglages publies depuis le demarrage (voir cloudflare/worker.ts) : redemarrage propre.
+  verifierReglages(requete.headers.get("x-hkl-config"));
   try {
     ensureDir(DATA_DIR);
     accessSync(DATA_DIR, constants.W_OK);

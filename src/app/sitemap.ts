@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { URL_SITE } from "@/lib/site";
 
-// A la demande : l'adresse du site n'est connue qu'a l'execution sur Render.
+// A la demande : l'adresse du site n'est connue qu'a l'execution (SITE_URL).
 export const dynamic = "force-dynamic";
 
 /* Les seules pages qui ont un sens pour quelqu'un qui arrive de Google. */

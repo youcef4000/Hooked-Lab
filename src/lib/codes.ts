@@ -5,6 +5,7 @@ import path from "node:path";
 import { DATA_DIR, ensureDir } from "./paths";
 import { appliquerAbonnement, trouverParId } from "./comptes";
 import { ENGAGEMENTS, PALIERS, RECHARGES, totalPalier } from "./tarifs";
+import { sauvegarder } from "./sauvegarde";
 
 /* ============================================================================
    Codes d'activation.
@@ -69,6 +70,7 @@ function enregistrer(codes: CodeActivation[]): void {
   const temporaire = `${f}.${process.pid}.tmp`;
   writeFileSync(temporaire, JSON.stringify(codes, null, 2), "utf8");
   renameSync(temporaire, f);
+  sauvegarder(f);
 }
 
 /** Format HK-XXXX-XXXX : lisible au telephone, difficile a deviner. */
@@ -297,4 +299,5 @@ export function journaliser(evenement: string, details: Record<string, unknown>)
     JSON.stringify({ le: new Date().toISOString(), evenement, ...details }) + "\n",
     "utf8",
   );
+  sauvegarder(JOURNAL);
 }

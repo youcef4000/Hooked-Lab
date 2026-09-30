@@ -4,6 +4,7 @@ import { DATA_DIR, ensureDir } from "./paths";
 import { appliquerAbonnement } from "./comptes";
 import { journaliser } from "./codes";
 import { ENGAGEMENTS, PALIERS, RECHARGES, totalPalier, type Devise } from "./tarifs";
+import { sauvegarder } from "./sauvegarde";
 
 /* ============================================================================
    Achats par carte : ce qu'on vend, et ce qu'on accorde une fois paye.
@@ -103,6 +104,7 @@ function enregistrer(liste: PaiementTraite[]): void {
   const temporaire = `${FICHIER}.${process.pid}.tmp`;
   writeFileSync(temporaire, JSON.stringify(liste, null, 2), "utf8");
   renameSync(temporaire, FICHIER);
+  sauvegarder(FICHIER);
 }
 
 export function listerPaiements(): PaiementTraite[] {

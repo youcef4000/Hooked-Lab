@@ -52,7 +52,9 @@ export async function POST(requete: Request): Promise<Response> {
         reference: String(corps.reference),
         mois: String(corps.mois ?? ""),
       },
-      urlSucces: `${base}/compte?paiement=ok`,
+      // Stripe remplace {CHECKOUT_SESSION_ID} : le retour verifie le paiement
+      // aupres de Stripe et ouvre l'acces sans attendre le webhook.
+      urlSucces: `${base}/api/paiement/retour?session_id={CHECKOUT_SESSION_ID}`,
       urlAnnulation: `${base}/compte?paiement=annule`,
     });
     return Response.json({ ok: true, url: session.url });

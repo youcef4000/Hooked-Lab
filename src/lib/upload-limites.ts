@@ -3,7 +3,11 @@
  * Ce module ne doit importer aucun module Node : il est charge cote client.
  */
 
-export const TAILLE_MAX_OCTETS = 300 * 1024 * 1024;
+/**
+ * 95 Mo : Cloudflare refuse les requetes de plus de 100 Mo. Une video
+ * publicitaire pese en general 5 a 40 Mo.
+ */
+export const TAILLE_MAX_OCTETS = 95 * 1024 * 1024;
 
 export const EXTENSIONS_VIDEO = [".mp4", ".mov", ".webm", ".m4v"] as const;
 export const EXTENSIONS_IMAGE = [".jpg", ".jpeg", ".png", ".webp"] as const;

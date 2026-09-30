@@ -1,27 +1,31 @@
-# Creative Lab DZ
+# Hooked Lab
 
 Analyse une creative publicitaire TikTok, Instagram ou Facebook — video ou image — puis produit
-le dossier complet pour lancer le produit en Algerie : script, angles marketing, sourcing Alibaba
-et 1688, calcul de rentabilite en paiement a la livraison, et pack de lancement pret a copier.
+le dossier complet pour lancer le produit sur le marche choisi (Etats-Unis, Royaume-Uni, France et
+Belgique, Europe, Australie, Algerie) : script, angles marketing, sourcing Alibaba et 1688,
+rentabilite, annonces Meta pretes a publier et pack de lancement. Site en francais et en anglais,
+abonnements payes par carte via Stripe (acces immediat).
+
+**Mise en ligne : voir [DEPLOIEMENT-CLOUDFLARE.md](DEPLOIEMENT-CLOUDFLARE.md).**
 
 ---
 
 ## Ce que fait l'application
 
-A partir d'un seul lien, elle produit :
+A partir d'un seul lien ou d'un fichier, elle produit :
 
 | Bloc | Contenu |
 |---|---|
-| **Script** | Script complet reconstitue (voix off + textes a l'ecran), decoupage horodate, traduction francaise |
+| **Script** | Script complet reconstitue (voix off + textes a l'ecran), decoupage horodate, traduction |
 | **Sequences cles** | Decoupage plan par plan avec le role de chacun : hook, probleme, solution, preuve, offre, appel a l'action |
 | **Hook** | Les 3 premieres secondes analysees et notees, avec des variantes a tester |
-| **Angles marketing** | Leviers de persuasion exploites, notes sur 10, puis reecrits pour le client algerien |
-| **Mots-cles** | Mots-cles produit, hashtags, recherche en francais et en arabe, interets de ciblage publicitaire |
+| **Angles marketing** | Leviers de persuasion exploites, notes sur 10, puis reecrits pour le marche choisi |
+| **Mots-cles** | Mots-cles produit, hashtags, recherches des acheteurs, interets de ciblage publicitaire |
 | **Audio** | Piste audio extraite en MP3, telechargeable et ecoutable dans le rapport |
 | **Images cles** | Keyframes exportees, a deposer sur Alibaba ou 1688 pour la recherche par image |
-| **Sourcing** | Produit identifie, requetes traduites en chinois, liens de recherche directs, fourchette de prix d'achat |
-| **Rentabilite COD** | Calculateur ajustable : prix de revient, profit par commande, CPA maximum, seuil de livraison |
-| **Pack de lancement** | Script en darija, page de vente en francais et en arabe, annonces Facebook et TikTok, objections clients, ciblage, idees de creatives, plan de lancement |
+| **Sourcing** | Produit identifie, requetes en chinois, liens de recherche directs, fourchette de prix d'achat |
+| **Rentabilite** | Calculateur ajustable dans la devise du marche : paiement par carte (ROAS, CPA max) ou a la livraison (confirmation, livraison, wilayas) |
+| **Pack de lancement** | Annonces Meta (variante A et B), script video, page de vente, objections clients, ciblage, idees de creatives, plan de lancement |
 
 ---
 

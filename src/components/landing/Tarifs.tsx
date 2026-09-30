@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useT } from "../Langue";
 import { GrilleTarifs } from "../tarifs/Grille";
-import { CARTE_ACTIVE } from "@/lib/public";
 
 /* ============================================================================
    Section tarifs de l'accueil : la grille partagee, un titre, et la reponse
@@ -15,16 +14,14 @@ const TEXTES = {
     titre: "Une analyse coûte moins cher qu'un test raté",
     sousTitre:
       "Et bien moins cher que 300 pièces d'un produit qui ne se vendra jamais. Sans engagement : tu arrêtes quand tu veux.",
-    paiementCarte: "Paiement sécurisé par carte : Visa, Mastercard, Apple Pay, RedotPay. Crédits ajoutés à la seconde.",
-    paiementManuel: "Activation par WhatsApp après ton paiement : on te répond dans l'heure.",
+    paiementCarte: "Paiement sécurisé par carte : Visa, Mastercard, Apple Pay, Google Pay. Accès ouvert à la seconde.",
     details: "Tous les détails",
   },
   en: {
     titre: "An analysis costs less than a failed test",
     sousTitre:
       "And far less than 300 units of a product that will never sell. No commitment: cancel whenever you want.",
-    paiementCarte: "Secure card payment: Visa, Mastercard, Apple Pay, RedotPay. Credits added instantly.",
-    paiementManuel: "Activation via WhatsApp after payment: we reply within the hour.",
+    paiementCarte: "Secure card payment: Visa, Mastercard, Apple Pay, Google Pay. Credits added instantly.",
     details: "All the details",
   },
 };
@@ -52,7 +49,7 @@ export function Tarifs() {
         </div>
 
         <p className="st-reveal mt-6 text-center text-xs leading-relaxed text-mist-400">
-          {CARTE_ACTIVE ? t.paiementCarte : t.paiementManuel}{" "}
+          {t.paiementCarte}{" "}
           <Link href="/tarifs" className="text-brand-400 underline underline-offset-4 hover:text-brand-300">
             {t.details}
           </Link>

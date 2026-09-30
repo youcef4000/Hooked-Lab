@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { EspaceCompte } from "@/components/compte/EspaceCompte";
 import { versPublic } from "@/lib/comptes";
 import { utilisateurCourant } from "@/lib/session";
-import { paiementCarteActif } from "@/lib/stripe";
 import { langueCourante } from "@/lib/langue-serveur";
 
 export async function generateMetadata() {
@@ -25,7 +24,6 @@ export default async function PageCompte({
   return (
     <EspaceCompte
       initial={versPublic(u)}
-      paiementCarte={paiementCarteActif()}
       retourPaiement={paiement === "ok" ? "ok" : paiement === "annule" ? "annule" : undefined}
       formule={formule}
       periode={Number(periode) === 12 ? 12 : 1}

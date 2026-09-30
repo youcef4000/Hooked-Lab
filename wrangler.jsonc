@@ -1,0 +1,58 @@
+// ============================================================================
+// Configuration Cloudflare de Hooked Lab.
+//
+// - Le Worker (cloudflare/worker.ts) recoit le trafic de hooked-lab.com.
+// - Le conteneur (Dockerfile) fait tourner l'application Next.js.
+// - Le bucket R2 "hooked-lab-donnees" garde comptes, credits, paiements et
+//   analyses : le disque du conteneur, lui, est efface a chaque redemarrage.
+//
+// Les secrets n'y figurent JAMAIS : ils se saisissent dans le tableau de
+// bord (Workers & Pages → hooked-lab → Settings → Variables and Secrets).
+// Guide complet : DEPLOIEMENT-CLOUDFLARE.md
+// ============================================================================
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hooked-lab",
+  "main": "cloudflare/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Le site sur son domaine. Le domaine doit etre dans ce compte Cloudflare.
+  "routes": [
+    { "pattern": "hooked-lab.com", "custom_domain": true },
+    { "pattern": "www.hooked-lab.com", "custom_domain": true }
+  ],
+  "workers_dev": true,
+
+  "containers": [
+    {
+      "class_name": "HookedLab",
+      "image": "./Dockerfile",
+      // Un seul conteneur : comptes, credits et file d'analyses sont en memoire.
+      "max_instances": 1,
+      // 1 vCPU (ffmpeg), 3 Go de memoire (le minimum pour 1 vCPU), 10 Go de
+      // disque. Environ 20 $ par mois s'il reste allume en permanence ; le
+      // processeur n'est facture que pendant les analyses.
+      "instance_type": { "vcpu": 1, "memory_mib": 3072, "disk_mb": 10000 }
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [{ "name": "HOOKED_LAB", "class_name": "HookedLab" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HookedLab"] }],
+
+  "r2_buckets": [{ "binding": "DONNEES", "bucket_name": "hooked-lab-donnees" }],
+
+  // Reveil toutes les 5 minutes : le site ne s'endort jamais.
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  // Reglages sans secret (modifiables ici ou dans le tableau de bord).
+  "vars": {
+    "SITE_URL": "https://hooked-lab.com",
+    "ANTHROPIC_MODEL": "claude-sonnet-5",
+    "MAX_ANALYSES_SIMULTANEES": "2"
+  },
+
+  "observability": { "enabled": true }
+}

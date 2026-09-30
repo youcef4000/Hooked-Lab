@@ -27,7 +27,7 @@ export const maxDuration = 600;
  *
  * Le fichier arrive en octets bruts dans le corps de la requete, avec son nom
  * dans l'en-tete `x-nom-fichier`. Cette forme evite le decodage multipart et
- * permet d'ecrire directement en flux, sans charger 300 Mo en memoire.
+ * permet d'ecrire directement en flux, sans charger 95 Mo en memoire.
  */
 export async function POST(request: Request) {
   const langue = await langueCourante();

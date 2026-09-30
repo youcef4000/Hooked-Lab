@@ -117,7 +117,7 @@ export async function autoriserAnalyse(type: TypeAnalyse, langue: Langue = "fr")
 
 /**
  * Meme verdict qu'autoriserAnalyse, sans rien debiter. Sert a refuser un
- * depot de fichier AVANT de recevoir 300 Mo : sans ce controle, n'importe
+ * depot de fichier AVANT de recevoir 95 Mo : sans ce controle, n'importe
  * quel visiteur pourrait remplir le disque du serveur.
  */
 export async function peutLancerAnalyse(

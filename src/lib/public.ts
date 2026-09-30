@@ -1,13 +1,9 @@
 /**
  * Reglages visibles du navigateur (inscrits dans le site a la construction).
  *
- * NEXT_PUBLIC_PAIEMENT_CARTE=1 une fois les cles Stripe saisies chez
- * l'hebergeur : tant qu'il vaut autre chose, aucun texte du site ne promet
- * le paiement par carte — seulement BaridiMob et CCP.
+ * Le paiement se fait par carte, via Stripe : c'est le seul chemin, et il
+ * ouvre l'acces immediatement. Le support client passe par email.
  */
-export const CARTE_ACTIVE = process.env.NEXT_PUBLIC_PAIEMENT_CARTE === "1";
 
-/** Formule courte des moyens de paiement, pour les textes d'accroche. */
-export const MOYENS_PAIEMENT = CARTE_ACTIVE
-  ? "Carte, RedotPay, BaridiMob ou CCP"
-  : "Paiement BaridiMob ou CCP";
+/** Adresse de support montree aux clients (NEXT_PUBLIC_EMAIL_SUPPORT pour la changer). */
+export const EMAIL_SUPPORT = process.env.NEXT_PUBLIC_EMAIL_SUPPORT?.trim() || "support@hooked-lab.com";

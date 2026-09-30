@@ -1,0 +1,12 @@
+# Jamais dans l'image : secrets, donnees locales, dependances et builds locaux.
+.env
+.env.*
+!.env.example
+data/
+bin/
+node_modules/
+.next/
+.git/
+.claude/
+.wrangler/
+*.tsbuildinfo

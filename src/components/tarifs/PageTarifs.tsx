@@ -4,7 +4,6 @@ import Link from "next/link";
 import { CarteVivante, Reveal } from "../Reveal";
 import { useT } from "../Langue";
 import { GrilleTarifs } from "./Grille";
-import { CARTE_ACTIVE } from "@/lib/public";
 
 /* ============================================================================
    Page tarifs.
@@ -20,24 +19,14 @@ const TEXTES = {
     titre2: "qu'un test raté.",
     intro: "Et bien moins cher qu'un stock de 300 pièces d'un produit qui ne se vendra jamais.",
     paiementCarte: "Paiement par carte, crédits ajoutés à la seconde.",
-    paiementManuel: "Activation dans l'heure après ton paiement.",
     etapesTitre: "De l'inscription à la première analyse",
-    etapes: CARTE_ACTIVE
-      ? [
-          { t: "Crée ton compte", d: "Email, mot de passe, téléphone. Une minute." },
+    etapes: [
+          { t: "Crée ton compte", d: "Nom, email, mot de passe. Une minute." },
           { t: "Choisis ta formule", d: "Mensuelle sans engagement, ou annuelle 20 % moins chère." },
-          { t: "Paie en 30 secondes", d: "Visa, Mastercard, Apple Pay ou RedotPay, sur une page sécurisée par Stripe." },
-          { t: "Analyse", d: "Tes crédits arrivent à la seconde. Colle ta première créative." },
-        ]
-      : [
-          { t: "Crée ton compte", d: "Email, mot de passe, téléphone. Une minute." },
-          { t: "Écris-nous sur WhatsApp", d: "On te donne les moyens de paiement disponibles." },
-          { t: "Paie", d: "Tu envoies la preuve de paiement sur WhatsApp." },
-          { t: "Reçois ton code", d: "Tu le saisis dans ton compte, tes crédits arrivent aussitôt." },
+          { t: "Paie en 30 secondes", d: "Visa, Mastercard, Apple Pay ou Google Pay, sur une page sécurisée par Stripe." },
+          { t: "Analyse", d: "Ton accès s'ouvre à la seconde. Colle ta première créative." },
         ],
-    etapesNote: CARTE_ACTIVE
-      ? "Aucun numéro de carte ne passe par Hooked Lab : le paiement est entièrement géré par Stripe."
-      : "Le paiement par carte en ligne arrive très bientôt.",
+    etapesNote: "Aucun numéro de carte ne passe par Hooked Lab : le paiement est entièrement géré par Stripe.",
     faqTitre: "Questions fréquentes",
     questions: [
       {
@@ -66,7 +55,7 @@ const TEXTES = {
       },
     ],
     ctaTitre: "Teste un produit avant d'acheter le stock.",
-    ctaTexte: CARTE_ACTIVE ? "Crée ton compte, paie, et ta première analyse part dans la minute." : "Crée ton compte : on t'active dans l'heure.",
+    ctaTexte: "Crée ton compte, paie, et ta première analyse part dans la minute.",
     creer: "Créer mon compte",
     outil: "Voir un exemple",
   },
@@ -75,24 +64,14 @@ const TEXTES = {
     titre2: "than a failed test.",
     intro: "And far less than a stock of 300 units of a product that will never sell.",
     paiementCarte: "Card payment, credits added instantly.",
-    paiementManuel: "Activation within the hour after payment.",
     etapesTitre: "From sign-up to your first analysis",
-    etapes: CARTE_ACTIVE
-      ? [
-          { t: "Create your account", d: "Email, password, phone. One minute." },
+    etapes: [
+          { t: "Create your account", d: "Name, email, password. One minute." },
           { t: "Pick your plan", d: "Monthly with no commitment, or yearly and 20% cheaper." },
-          { t: "Pay in 30 seconds", d: "Visa, Mastercard, Apple Pay or RedotPay, on a page secured by Stripe." },
-          { t: "Analyse", d: "Credits land instantly. Paste your first creative." },
-        ]
-      : [
-          { t: "Create your account", d: "Email, password, phone. One minute." },
-          { t: "Message us on WhatsApp", d: "We send you the available payment methods." },
-          { t: "Pay", d: "Send the proof of payment on WhatsApp." },
-          { t: "Get your code", d: "Enter it in your account: credits land right away." },
+          { t: "Pay in 30 seconds", d: "Visa, Mastercard, Apple Pay or Google Pay, on a page secured by Stripe." },
+          { t: "Analyse", d: "Access opens instantly. Paste your first creative." },
         ],
-    etapesNote: CARTE_ACTIVE
-      ? "No card number ever goes through Hooked Lab: payment is fully handled by Stripe."
-      : "Online card payment is coming very soon.",
+    etapesNote: "No card number ever goes through Hooked Lab: payment is fully handled by Stripe.",
     faqTitre: "Frequently asked questions",
     questions: [
       {
@@ -121,7 +100,7 @@ const TEXTES = {
       },
     ],
     ctaTitre: "Test a product before you buy the stock.",
-    ctaTexte: CARTE_ACTIVE ? "Create your account, pay, and your first analysis starts within a minute." : "Create your account: we activate it within the hour.",
+    ctaTexte: "Create your account, pay, and your first analysis starts within a minute.",
     creer: "Create my account",
     outil: "See a sample",
   },
@@ -139,7 +118,7 @@ export function PageTarifs() {
             {t.titre1} <span className="text-gold-titre">{t.titre2}</span>
           </h1>
           <p className="rev mx-auto mt-6 max-w-xl text-base leading-relaxed text-mist-200 sm:text-[17px]">
-            {t.intro} {CARTE_ACTIVE ? t.paiementCarte : t.paiementManuel}
+            {t.intro} {t.paiementCarte}
           </p>
         </div>
       </section>

@@ -17,3 +17,6 @@ data/uploads/
 
 .DS_Store
 Thumbs.db
+
+# Cloudflare (wrangler)
+.wrangler/

@@ -2,6 +2,7 @@ import { activerCode, journaliser } from "@/lib/codes";
 import { trouverParId, versPublic } from "@/lib/comptes";
 import { utilisateurCourant } from "@/lib/session";
 import { langueCourante } from "@/lib/langue-serveur";
+import { viderSauvegardes } from "@/lib/sauvegarde";
 
 /* Saisie d'un code d'activation par un abonne. */
 
@@ -54,6 +55,7 @@ export async function POST(requete: Request): Promise<Response> {
     return Response.json({ ok: false, message: resultat.message }, { status: 422 });
   }
 
+  await viderSauvegardes(10_000);
   journaliser("code_active", {
     utilisateur: u.id,
     email: u.email,

@@ -3,6 +3,7 @@ import { creerCompte, versPublic } from "@/lib/comptes";
 import { COOKIE_SESSION, DUREE_COOKIE, creerJeton } from "@/lib/session";
 import { creerLimiteur, ipClient } from "@/lib/limiteur";
 import { langueCourante } from "@/lib/langue-serveur";
+import { viderSauvegardes } from "@/lib/sauvegarde";
 
 /* Creation d'un compte. L'inscription est libre ; c'est l'activation par code
    qui donne acces aux analyses. */
@@ -37,6 +38,9 @@ export async function POST(requete: Request): Promise<Response> {
   if (!resultat.ok || !resultat.utilisateur) {
     return Response.json({ ok: false, message: resultat.message }, { status: 422 });
   }
+
+  // Le compte doit etre en lieu sur (R2) avant d'etre confirme.
+  await viderSauvegardes(10_000);
 
   // On connecte directement : demander de se reconnecter juste apres s'etre
   // inscrit est une friction sans contrepartie.

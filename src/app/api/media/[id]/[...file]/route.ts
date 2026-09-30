@@ -4,6 +4,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { safeMediaPath } from "@/lib/paths";
 import { lecteurCourant, peutVoir } from "@/lib/acces-analyses";
+import { recupererSiAbsent } from "@/lib/sauvegarde";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,8 @@ export async function GET(
 
   // safeMediaPath refuse tout chemin qui sortirait du dossier de l'analyse.
   const target = safeMediaPath(id, file.join("/"));
+  // Apres un redemarrage, les medias restent dans R2 jusqu'a leur premiere demande.
+  if (target) await recupererSiAbsent(target);
   if (!target || !existsSync(target) || !statSync(target).isFile()) {
     return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
   }

@@ -1,8 +1,10 @@
+import { EMAIL_SUPPORT } from "./public";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { DATA_DIR, ensureDir } from "./paths";
 import type { Langue } from "./langue";
+import { sauvegarder } from "./sauvegarde";
 
 const MESSAGES = {
   fr: {
@@ -13,7 +15,7 @@ const MESSAGES = {
     emailPris: "Un compte existe déjà avec cette adresse.",
     telephonePris: "Un compte existe déjà avec ce numéro.",
     refus: "Email ou mot de passe incorrect.",
-    suspendu: "Ce compte est suspendu. Contacte-nous sur WhatsApp.",
+    suspendu: `Ce compte est suspendu. Écris-nous à ${EMAIL_SUPPORT}.`,
   },
   en: {
     email: "Invalid email address.",
@@ -23,7 +25,7 @@ const MESSAGES = {
     emailPris: "An account already exists with this email.",
     telephonePris: "An account already exists with this number.",
     refus: "Incorrect email or password.",
-    suspendu: "This account is suspended. Contact us on WhatsApp.",
+    suspendu: `This account is suspended. Email us at ${EMAIL_SUPPORT}.`,
   },
 } as const;
 
@@ -93,6 +95,7 @@ function enregistrer(utilisateurs: Utilisateur[]): void {
   const temporaire = `${f}.${process.pid}.tmp`;
   writeFileSync(temporaire, JSON.stringify(utilisateurs, null, 2), "utf8");
   renameSync(temporaire, f);
+  sauvegarder(f);
 }
 
 /* ------------------------------------------------------- mots de passe */
@@ -153,18 +156,19 @@ export function creerCompte(
   donnees: {
     email: string;
     motDePasse: string;
-    telephone: string;
+    /** Facultatif : l'inscription ne le demande plus. */
+    telephone?: string;
     nom: string;
   },
   langue: Langue = "fr",
 ): ResultatCompte {
   const t = MESSAGES[langue];
   const email = normaliserEmail(donnees.email);
-  const telephone = normaliserTelephone(donnees.telephone);
+  const telephone = donnees.telephone?.trim() ? normaliserTelephone(donnees.telephone) : "";
   const nom = String(donnees.nom ?? "").trim().slice(0, 80);
 
   if (!emailValide(email)) return { ok: false, message: t.email };
-  if (!telephoneValide(telephone)) {
+  if (telephone && !telephoneValide(telephone)) {
     return { ok: false, message: t.telephone };
   }
   if (nom.length < 3) return { ok: false, message: t.nom };
@@ -176,11 +180,9 @@ export function creerCompte(
   if (utilisateurs.some((u) => u.email === email)) {
     return { ok: false, message: t.emailPris };
   }
-  // Le telephone est unique aussi : c'est par lui que passe l'activation, et
-  // deux comptes sur un meme numero rendraient l'appel ambigu.
-  // Les comptes anciens gardent un numero algerien local : on compare
-  // tout au format international.
-  if (utilisateurs.some((u) => normaliserTelephone(u.telephone) === telephone)) {
+  // Un numero donne reste unique. Les comptes anciens gardent un numero
+  // algerien local : on compare tout au format international.
+  if (telephone && utilisateurs.some((u) => u.telephone && normaliserTelephone(u.telephone) === telephone)) {
     return { ok: false, message: t.telephonePris };
   }
 

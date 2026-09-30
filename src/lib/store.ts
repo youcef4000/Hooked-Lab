@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { ANALYSES_DIR, analysisDir, analysisFile, ensureDir } from "./paths";
 import type { Report, ReportSummary } from "@/types/analysis";
+import { oublier, sauvegarderDossier } from "./sauvegarde";
 
 const REPORT_FILE = "rapport.json";
 
@@ -70,6 +71,8 @@ export function saveReport(report: Report): void {
   writeFileSync(temporaire, JSON.stringify(report, null, 2), "utf8");
   renameSync(temporaire, cible);
   index().set(report.id, toSummary(report));
+  // Rapport et medias partent dans R2 ; ce qui y est deja n'est pas renvoye.
+  sauvegarderDossier(analysisDir(report.id));
 }
 
 export function getReport(id: string): Report | null {
@@ -85,6 +88,7 @@ export function deleteReport(id: string): boolean {
   if (!idValide(id)) return false;
   const dir = analysisDir(id);
   index().delete(id);
+  oublier(dir, true);
   if (!existsSync(dir)) return false;
   rmSync(dir, { recursive: true, force: true });
   return true;

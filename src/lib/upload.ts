@@ -35,7 +35,7 @@ export class UploadError extends Error {}
 
 /**
  * Ecrit le corps de la requete sur disque en flux, sans jamais charger les
- * 300 Mo en memoire. Interrompt et nettoie des que le quota est depasse.
+ * 95 Mo en memoire. Interrompt et nettoie des que le quota est depasse.
  */
 /** Messages de depot, dans la langue de la personne qui depose. */
 const MESSAGES = {

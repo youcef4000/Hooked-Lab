@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { DATA_DIR, ensureDir } from "./paths";
+import { sauvegarder } from "./sauvegarde";
 
 /* ============================================================================
    Journal des analyses echouees.
@@ -26,6 +27,7 @@ export function noterIncident(incident: Omit<Incident, "le">): void {
   try {
     ensureDir(DATA_DIR);
     appendFileSync(FICHIER, JSON.stringify({ le: new Date().toISOString(), ...incident }) + "\n", "utf8");
+    sauvegarder(FICHIER);
   } catch {
     /* le journal ne doit jamais faire echouer autre chose */
   }

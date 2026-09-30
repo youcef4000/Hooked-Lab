@@ -6,6 +6,9 @@ import { config } from "@/lib/config";
 import { derniersIncidents } from "@/lib/incidents";
 import { etatFileAnalyses } from "@/lib/pipeline";
 import { listerUtilisateurs } from "@/lib/comptes";
+import { paiementCarteActif } from "@/lib/stripe";
+import { sauvegardeActive } from "@/lib/sauvegarde";
+import { EMAIL_SUPPORT } from "@/lib/public";
 
 export const dynamic = "force-dynamic";
 
@@ -79,8 +82,8 @@ function Controle({
   );
 }
 
-/** Taille du disque persistant prevu dans render.yaml. */
-const DISQUE_OCTETS = 20 * 1024 ** 3;
+/** Disque du conteneur Cloudflare (instance_type dans wrangler.jsonc). */
+const DISQUE_OCTETS = 10 * 1000 ** 3;
 
 export default function PageSysteme() {
   const poidsAnalyses = poidsDossier(ANALYSES_DIR);
@@ -97,10 +100,9 @@ export default function PageSysteme() {
     (process.env.ADMIN_SECRET?.trim().length ?? 0) >= 16 &&
     (process.env.SESSION_SECRET?.trim().length ?? 0) >= 16;
   const groqRequis = config.transcriber === "groq";
-  const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP?.trim() ?? "";
-  const pixelMeta = process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() ?? "";
-  const pixelTiktok = process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID?.trim() ?? "";
-  const disquePersistant = Boolean(process.env.DATA_DIR?.trim());
+  const stripe = paiementCarteActif();
+  const pixelMeta = (process.env.META_PIXEL_ID ?? process.env.NEXT_PUBLIC_META_PIXEL_ID ?? "").trim();
+  const pixelTiktok = (process.env.TIKTOK_PIXEL_ID ?? process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID ?? "").trim();
 
   const file = etatFileAnalyses();
   const incidents = derniersIncidents(15);
@@ -134,7 +136,7 @@ export default function PageSysteme() {
           </p>
           <p className="mt-1 text-xs text-mist-500">
             {production
-              ? `${Math.round(remplissage * 100)} % du disque de 20 Go`
+              ? `${Math.round(remplissage * 100)} % du disque de 10 Go (tout est aussi dans R2)`
               : `dont ${lisible(poidsAnalyses)} d'analyses`}
           </p>
         </Card>
@@ -165,8 +167,8 @@ export default function PageSysteme() {
       <Card className="p-5">
         <h2 className="mb-1 text-sm font-semibold text-mist-100">Réglages du serveur</h2>
         <p className="mb-2 text-xs text-mist-400">
-          Tout ce que le code peut vérifier lui-même. Sur Render, chaque valeur se règle dans le
-          service, onglet Environment.
+          Tout ce que le code peut vérifier lui-même. Sur Cloudflare, chaque valeur se règle dans
+          le Worker hooked-lab, onglet Settings → Variables and Secrets.
         </p>
 
         <Controle
@@ -217,38 +219,34 @@ export default function PageSysteme() {
               : "Au moins un secret manque : les sessions sont signées avec une valeur dérivée du mot de passe."
           }
           action={
-            secretsOk ? undefined : "Sur Render, ils sont générés automatiquement par render.yaml."
+            secretsOk
+              ? undefined
+              : "Ajouter ADMIN_SECRET et SESSION_SECRET (32 caractères aléatoires chacun) dans les secrets du Worker."
           }
         />
 
         {production && (
           <Controle
-            etat={disquePersistant ? "ok" : "manquant"}
-            titre="Disque persistant"
+            etat={sauvegardeActive ? "ok" : "manquant"}
+            titre="Sauvegarde R2"
             detail={
-              disquePersistant
-                ? `Données enregistrées dans ${DATA_DIR} : elles survivent aux mises à jour.`
-                : "DATA_DIR absent : comptes, codes et analyses seront effacés à la prochaine mise à jour."
+              sauvegardeActive
+                ? "Comptes, crédits, paiements et rapports sont copiés dans R2 à chaque enregistrement, et rapatriés à chaque démarrage."
+                : "Inactive : sur Cloudflare, tout serait effacé au prochain redémarrage du conteneur."
             }
-            action={
-              disquePersistant ? undefined : "Attacher un disque et régler DATA_DIR=/var/data."
-            }
+            action={sauvegardeActive ? undefined : "Vérifier STOCKAGE_URL dans cloudflare/worker.ts et le bucket R2 lié."}
           />
         )}
 
         <Controle
-          etat={whatsapp ? "ok" : "attention"}
-          titre="Numéro WhatsApp"
+          etat={stripe ? "ok" : "manquant"}
+          titre="Paiement Stripe"
           detail={
-            whatsapp
-              ? `Les boutons de paiement et le support ouvrent une conversation avec le ${whatsapp}.`
-              : "Absent : les clients n'ont aucun moyen de te joindre pour payer."
+            stripe
+              ? `Clés configurées : les clients paient par carte et leur accès s'ouvre aussitôt. Support affiché : ${EMAIL_SUPPORT}.`
+              : "Clés absentes : personne ne peut payer, donc personne ne peut s'abonner."
           }
-          action={
-            whatsapp
-              ? undefined
-              : "Renseigner NEXT_PUBLIC_WHATSAPP (ex. 213558678038), puis redéployer."
-          }
+          action={stripe ? undefined : "Ajouter STRIPE_SECRET_KEY et STRIPE_WEBHOOK_SECRET dans les secrets du Worker."}
         />
 
         <Controle
@@ -260,7 +258,7 @@ export default function PageSysteme() {
           action={
             pixelMeta && pixelTiktok
               ? undefined
-              : "Renseigner NEXT_PUBLIC_META_PIXEL_ID et NEXT_PUBLIC_TIKTOK_PIXEL_ID avant de lancer les pubs, puis redéployer."
+              : "Ajouter META_PIXEL_ID et TIKTOK_PIXEL_ID dans les variables du Worker avant de lancer les pubs."
           }
         />
 
@@ -270,7 +268,7 @@ export default function PageSysteme() {
           detail={`${lisible(poidsData)} utilisés. Une analyse pèse environ 15 Mo, surtout la vidéo. Les dossiers orphelins sont purgés automatiquement.`}
           action={
             remplissage > 0.75
-              ? "Agrandir le disque sur Render (Disks) ou supprimer d'anciennes analyses."
+              ? "Les médias restent dans R2 ; supprimer d'anciennes analyses libère le disque du conteneur."
               : undefined
           }
         />

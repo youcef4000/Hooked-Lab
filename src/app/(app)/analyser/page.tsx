@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Vitrine } from "@/components/analyser/Vitrine";
 import { PosteTravail } from "@/components/analyser/PosteTravail";
 import { BandeauAcces } from "@/components/compte/BandeauAcces";
+import { Bienvenue } from "@/components/compte/Bienvenue";
 import { listDemos, listReports, listReportsDe } from "@/lib/store";
 import { config } from "@/lib/config";
 import { estConnecte } from "@/lib/admin-auth";
@@ -26,7 +27,8 @@ export async function generateMetadata() {
    chose et qu'une page qui essaie de servir les deux echoue aux deux.
    ========================================================================== */
 
-export default async function PageAnalyser() {
+export default async function PageAnalyser({ searchParams }: { searchParams: Promise<{ bienvenue?: string }> }) {
+  const { bienvenue } = await searchParams;
   const proprietaire = await estConnecte();
   const abonne = await utilisateurCourant();
   const actif = abonne !== null && abonnementActif(abonne);
@@ -64,6 +66,7 @@ export default async function PageAnalyser() {
     return (
       <>
         {alertes}
+        {bienvenue === "1" && <Bienvenue credits={abonne.credits} palier={abonne.palier} />}
         <PosteTravail
           recentes={listReportsDe(abonne.id).slice(0, 8)}
           credits={abonne.credits}

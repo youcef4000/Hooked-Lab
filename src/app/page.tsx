@@ -28,12 +28,10 @@ import { CarteVivante } from "@/components/Reveal";
 import { SelecteurLangue, useLangue, useT } from "@/components/Langue";
 import { prixPlancher } from "@/lib/tarifs";
 import { formatMontant } from "@/lib/marches";
-import { CARTE_ACTIVE } from "@/lib/public";
 import { locale } from "@/lib/langue";
+import { EMAIL_SUPPORT } from "@/lib/public";
 
 /* ------------------------------------------------------------------ textes */
-
-const WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP?.replace(/\D/g, "") ?? "";
 
 const TEXTES = {
   fr: {
@@ -76,40 +74,29 @@ const TEXTES = {
     ],
     bentoTitre: "Un rapport qui remplace une journée de travail",
     bentoIntro: "Ce que font un media buyer, un sourceur et un copywriter, réunis dans une seule analyse.",
-    demarrerTitre: CARTE_ACTIVE ? "Prêt à analyser en deux minutes." : "Activé dans l'heure.",
-    demarrerIntro: CARTE_ACTIVE
-      ? "Un compte, un paiement sécurisé, et ta première analyse part aussitôt. Aucune installation."
-      : "Un compte, un message sur WhatsApp, et on t'active dans l'heure. Aucune installation.",
-    etapes: CARTE_ACTIVE
-      ? [
-          { titre: "Crée ton compte", texte: "Email, mot de passe, téléphone. Une minute." },
+    demarrerTitre: "Prêt à analyser en deux minutes.",
+    demarrerIntro: "Un compte, un paiement sécurisé, et ta première analyse part aussitôt. Aucune installation.",
+    etapes: [
+          { titre: "Crée ton compte", texte: "Nom, email, mot de passe. Une minute." },
           { titre: "Choisis ta formule", texte: "Mensuelle sans engagement, ou annuelle 20 % moins chère." },
-          { titre: "Paie en 30 secondes", texte: "Visa, Mastercard, Apple Pay ou RedotPay, sécurisé par Stripe." },
-          { titre: "Analyse tout de suite", texte: "Tes crédits arrivent à la seconde. Colle ta première créative." },
-        ]
-      : [
-          { titre: "Crée ton compte", texte: "Email, mot de passe, téléphone. Une minute." },
-          { titre: "Écris-nous sur WhatsApp", texte: "On te donne les moyens de paiement disponibles." },
-          { titre: "Paie", texte: "Tu envoies la preuve de paiement, on vérifie." },
-          { titre: "Reçois ton code", texte: "Tu le saisis dans ton compte : tes crédits arrivent aussitôt." },
+          { titre: "Paie en 30 secondes", texte: "Visa, Mastercard, Apple Pay ou Google Pay, sécurisé par Stripe." },
+          { titre: "Analyse tout de suite", texte: "Ton accès s'ouvre à la seconde. Colle ta première créative." },
         ],
-    question: "Une question avant ? Écris-nous sur WhatsApp",
+    question: "Une question avant ? Écris-nous",
     faqTitre: "Questions fréquentes",
     faqIntro: "Tu ne trouves pas ta réponse ?",
-    faqWhatsapp: "Pose-la sur WhatsApp",
+    faqContact: "Écris-nous à",
     faq: [
       { q: "Ça marche avec les vidéos TikTok et Instagram ?", r: "Oui. Tu colles le lien du post, ou tu déposes directement le fichier vidéo ou l'image — c'est la méthode la plus fiable, les plateformes bloquant souvent la récupération automatique. Le rapport est identique dans les deux cas." },
       { q: "Quels marchés sont couverts ?", r: "États-Unis, Royaume-Uni, France et Belgique, reste de l'Europe, Australie et Algérie. Tu choisis le marché à chaque analyse : prix et devise, paiement par carte ou à la livraison, taxes à l'import, langue des annonces et réglementation publicitaire s'adaptent." },
       { q: "Les prix fournisseurs sont-ils fiables ?", r: "Ce sont des fourchettes estimées par l'IA, avec un indice de fiabilité affiché. Les liens Alibaba et 1688 générés te donnent les prix réels des fournisseurs en un clic, et la recherche par image retrouve le produit exact." },
       { q: "Que se passe-t-il si une analyse échoue ?", r: "Tes crédits te sont rendus automatiquement. Une analyse ne se facture que si tu reçois ton rapport." },
       { q: "En quelle langue sont les rapports ?", r: "En français ou en anglais, selon la langue que tu choisis en haut de page. Les annonces, scripts et pages de vente sont écrits dans la langue de ton marché : anglais américain, britannique ou australien, français, ou darija algérienne." },
-      { q: "Comment se passe le paiement ?", r: CARTE_ACTIVE ? "Par carte (Visa, Mastercard, Apple Pay, RedotPay) sur une page sécurisée par Stripe : tes crédits arrivent à la seconde. Sans engagement pour la formule mensuelle." : "Tu nous écris sur WhatsApp après ton inscription : on te donne les moyens de paiement disponibles et on active ton compte dans l'heure." },
+      { q: "Comment se passe le paiement ?", r: "Par carte (Visa, Mastercard, Apple Pay, Google Pay) sur une page sécurisée par Stripe : ton accès s'ouvre à la seconde. Sans engagement pour la formule mensuelle." },
     ],
     finalTitre: "La prochaine créative que tu vois passer peut devenir ton produit gagnant.",
     aPartir: (prix: string) => `À partir de ${prix} par mois · formule mensuelle sans engagement disponible`,
     footer: "Les prix et estimations sont des ordres de grandeur, à vérifier auprès des fournisseurs.",
-    ecrire: "Nous écrire sur WhatsApp",
-    messageWa: "Bonjour, j'ai une question sur Hooked Lab.",
     accueil: "Hooked Lab, accueil",
   },
   en: {
@@ -152,40 +139,29 @@ const TEXTES = {
     ],
     bentoTitre: "One report that replaces a day of work",
     bentoIntro: "What a media buyer, a sourcing agent and a copywriter do, in a single analysis.",
-    demarrerTitre: CARTE_ACTIVE ? "Ready to analyse in two minutes." : "Activated within the hour.",
-    demarrerIntro: CARTE_ACTIVE
-      ? "An account, a secure payment, and your first analysis starts right away. Nothing to install."
-      : "An account, a WhatsApp message, and we activate you within the hour. Nothing to install.",
-    etapes: CARTE_ACTIVE
-      ? [
-          { titre: "Create your account", texte: "Email, password, phone. One minute." },
+    demarrerTitre: "Ready to analyse in two minutes.",
+    demarrerIntro: "An account, a secure payment, and your first analysis starts right away. Nothing to install.",
+    etapes: [
+          { titre: "Create your account", texte: "Name, email, password. One minute." },
           { titre: "Pick your plan", texte: "Monthly with no commitment, or yearly and 20% cheaper." },
-          { titre: "Pay in 30 seconds", texte: "Visa, Mastercard, Apple Pay or RedotPay, secured by Stripe." },
-          { titre: "Analyse right away", texte: "Credits land instantly. Paste your first creative." },
-        ]
-      : [
-          { titre: "Create your account", texte: "Email, password, phone. One minute." },
-          { titre: "Message us on WhatsApp", texte: "We send you the available payment methods." },
-          { titre: "Pay", texte: "Send the proof of payment, we check it." },
-          { titre: "Get your code", texte: "Enter it in your account: credits land right away." },
+          { titre: "Pay in 30 seconds", texte: "Visa, Mastercard, Apple Pay or Google Pay, secured by Stripe." },
+          { titre: "Analyse right away", texte: "Access opens instantly. Paste your first creative." },
         ],
-    question: "A question first? Message us on WhatsApp",
+    question: "A question first? Email us",
     faqTitre: "Frequently asked questions",
     faqIntro: "Can't find your answer?",
-    faqWhatsapp: "Ask it on WhatsApp",
+    faqContact: "Email us at",
     faq: [
       { q: "Does it work with TikTok and Instagram videos?", r: "Yes. Paste the post link, or upload the video file or image directly — the most reliable option, since platforms often block automated downloads. The report is identical either way." },
       { q: "Which markets are covered?", r: "United States, United Kingdom, France & Belgium, the rest of Europe, Australia and Algeria. You pick the market for each analysis: price and currency, card or cash-on-delivery payment, import taxes, ad language and advertising rules all adapt." },
       { q: "Are supplier prices reliable?", r: "They are AI-estimated ranges with a reliability score. The generated Alibaba and 1688 links give you real supplier prices in one click, and image search finds the exact product." },
       { q: "What if an analysis fails?", r: "Your credits are refunded automatically. You're only charged when you get your report." },
       { q: "Which language are the reports in?", r: "English or French, depending on the language you pick at the top of the page. Ads, scripts and sales pages are written in your market's language: American, British or Australian English, French, or Algerian darija." },
-      { q: "How does payment work?", r: CARTE_ACTIVE ? "By card (Visa, Mastercard, Apple Pay, RedotPay) on a page secured by Stripe: credits land instantly. No commitment on the monthly plan." : "Message us on WhatsApp after signing up: we'll share the available payment methods and activate your account within the hour." },
+      { q: "How does payment work?", r: "By card (Visa, Mastercard, Apple Pay, Google Pay) on a page secured by Stripe: access opens instantly. No commitment on the monthly plan." },
     ],
     finalTitre: "The next creative you scroll past could be your next winning product.",
     aPartir: (prix: string) => `From ${prix} a month · monthly plan with no commitment available`,
     footer: "Prices and estimates are orders of magnitude: always confirm them with suppliers.",
-    ecrire: "Message us on WhatsApp",
-    messageWa: "Hello, I have a question about Hooked Lab.",
     accueil: "Hooked Lab, home",
   },
 };
@@ -249,10 +225,11 @@ function Magnetic({ children, className = "" }: { children: ReactNode; className
   );
 }
 
-function IconeWhatsApp({ className = "" }: { className?: string }) {
+function IconeEmail({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3a2.5 2.5 0 0 0-.8 1.9 4.4 4.4 0 0 0 .9 2.3 10 10 0 0 0 3.8 3.4c1.4.6 2 .7 2.7.6.4-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.4-.2z" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="m4 7 8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -438,7 +415,7 @@ export default function Landing() {
 
   const deviseExemple = langue === "fr" ? "EUR" : "USD";
   const profitExemple = langue === "fr" ? 7.2 : 7.7;
-  const lienWhatsApp = WHATSAPP ? `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(t.messageWa)}` : "";
+  const lienContact = `mailto:${EMAIL_SUPPORT}`;
 
   /* La barre du haut se fond dans le hero, puis prend un fond des qu'on
      defile ; la barre d'action mobile apparait une fois le hero depasse et
@@ -1015,12 +992,10 @@ export default function Landing() {
             <Link href="/inscription" className="cta-aurora inline-block rounded-full px-7 py-3 text-sm font-semibold">
               {t.nav.creer}
             </Link>
-            {lienWhatsApp && (
-              <a href={lienWhatsApp} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-mist-300 transition hover:text-brand-300">
-                <IconeWhatsApp className="h-4 w-4 text-jade" />
-                {t.question}
-              </a>
-            )}
+            <a href={lienContact} className="inline-flex items-center gap-2 text-sm text-mist-300 transition hover:text-brand-300">
+              <IconeEmail className="h-4 w-4 text-brand-400" />
+              {t.question}
+            </a>
           </div>
         </div>
       </section>
@@ -1030,15 +1005,13 @@ export default function Landing() {
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
           <div>
             <h2 className="st-titre text-3xl font-medium tracking-[-0.02em] text-mist-100 sm:text-4xl">{mots(t.faqTitre)}</h2>
-            {lienWhatsApp && (
-              <p className="st-reveal mt-3 max-w-sm text-sm font-light leading-relaxed text-mist-300">
-                {t.faqIntro}{" "}
-                <a href={lienWhatsApp} target="_blank" rel="noopener noreferrer" className="text-brand-300 underline underline-offset-4 hover:text-brand-400">
-                  {t.faqWhatsapp}
-                </a>
-                .
-              </p>
-            )}
+            <p className="st-reveal mt-3 max-w-sm text-sm font-light leading-relaxed text-mist-300">
+              {t.faqIntro} {t.faqContact}{" "}
+              <a href={lienContact} className="text-brand-300 underline underline-offset-4 hover:text-brand-400">
+                {EMAIL_SUPPORT}
+              </a>
+              .
+            </p>
           </div>
           <div className="space-y-3">
             {t.faq.map((f) => (
@@ -1088,18 +1061,6 @@ export default function Landing() {
           <Link href="/inscription" tabIndex={barreMobile ? 0 : -1} className="cta-aurora flex-1 rounded-full px-5 py-3 text-center text-sm font-semibold">
             {t.nav.creer}
           </Link>
-          {lienWhatsApp && (
-            <a
-              href={lienWhatsApp}
-              target="_blank"
-              rel="noopener noreferrer"
-              tabIndex={barreMobile ? 0 : -1}
-              aria-label={t.ecrire}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-jade/40 bg-jade/10 text-jade"
-            >
-              <IconeWhatsApp className="h-5 w-5" />
-            </a>
-          )}
         </div>
       </div>
     </div>

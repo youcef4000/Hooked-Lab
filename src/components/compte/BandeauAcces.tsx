@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { CARTE_ACTIVE } from "@/lib/public";
 import type { Langue } from "@/lib/langue";
 
 /* ============================================================================
@@ -13,9 +12,7 @@ const TEXTES = {
   fr: {
     visiteur: {
       titre: "Crée ton compte pour lancer une analyse",
-      texte: CARTE_ACTIVE
-        ? "Une minute, un paiement sécurisé, et ta première analyse part aussitôt."
-        : "Une minute, et on t'active dans l'heure. Tu peux déjà parcourir un rapport d'exemple.",
+      texte: "Une minute, un paiement sécurisé, et ta première analyse part aussitôt.",
       action: "Créer mon compte",
       secondaire: "J'ai déjà un compte",
     },
@@ -35,9 +32,7 @@ const TEXTES = {
   en: {
     visiteur: {
       titre: "Create your account to run an analysis",
-      texte: CARTE_ACTIVE
-        ? "One minute, a secure payment, and your first analysis starts right away."
-        : "One minute, and we activate you within the hour. You can already browse a sample report.",
+      texte: "One minute, a secure payment, and your first analysis starts right away.",
       action: "Create my account",
       secondaire: "I already have an account",
     },

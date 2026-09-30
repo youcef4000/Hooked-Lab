@@ -7,6 +7,7 @@ import { evenement } from "../Pixels";
 import { useDevise, SelecteurDevise } from "../Devise";
 import { useLangue, useT } from "../Langue";
 import type { UtilisateurPublic } from "@/lib/comptes";
+import { EMAIL_SUPPORT } from "@/lib/public";
 import { locale } from "@/lib/langue";
 import {
   COUT_CREDITS,
@@ -14,6 +15,7 @@ import {
   PALIERS,
   RECHARGES,
   formatPrix,
+  prixPalier,
   totalPalier,
   videosPour,
 } from "@/lib/tarifs";
@@ -21,13 +23,11 @@ import {
 /* ============================================================================
    Espace personnel de l'abonne.
 
-   Ce que l'abonne vient chercher tient en trois choses : combien il lui
-   reste, comment en reprendre, et le moyen de nous joindre. Le paiement par
-   carte passe en premier : c'est le chemin le plus court. Le code
-   d'activation reste pour les paiements traites a la main.
+   Ce que l'abonne vient chercher tient en deux choses : combien il lui
+   reste, et comment en reprendre. Le paiement par carte (Stripe) est le
+   seul chemin : il ouvre l'acces sur place. Sans formule active, il passe
+   en tete de page. Le code cadeau reste discret, replie en bas.
    ========================================================================== */
-
-const NUMERO_WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP?.replace(/\D/g, "") ?? "";
 
 const TEXTES = {
   fr: {
@@ -42,10 +42,10 @@ const TEXTES = {
     echec: "Une analyse ratée ne coûte rien : les crédits sont rendus automatiquement.",
     analyser: "Analyser une créative",
     recuTitre: (attente: boolean): string => (attente ? "Paiement reçu — tes crédits arrivent…" : "Paiement confirmé. Tes crédits sont disponibles."),
-    recuAide: "Si ton solde n'a pas bougé d'ici une minute, écris-nous sur WhatsApp avec ton email : on vérifie tout de suite.",
+    recuAide: (email: string) => `Si ton solde n'a pas bougé d'ici une minute, recharge la page. Toujours rien ? Écris à ${email} : on vérifie tout de suite.`,
     annule: "Paiement annulé : rien n'a été débité.",
     carteTitre: (actif: boolean): string => (actif ? "Reprendre des crédits" : "Choisir ma formule"),
-    carteAide: "Visa, Mastercard, Apple Pay, RedotPay. Crédits ajoutés dès la validation du paiement.",
+    carteAide: "Carte Visa ou Mastercard, Apple Pay, Google Pay. L'accès s'ouvre dès la validation du paiement.",
     abonnement: "Abonnement",
     recharge: "Recharge de crédits",
     videosMois: (n: number) => `${n} vidéos / mois`,
@@ -54,17 +54,15 @@ const TEXTES = {
     ouverture: "Ouverture du paiement sécurisé…",
     payer: (m: string) => `Payer ${m}`,
     securite: "Paiement sécurisé par Stripe. Aucun numéro de carte ne passe par Hooked Lab.",
+    parMois: (m: string) => `Soit ${m} par mois, réglés en une fois pour l'année.`,
     erreurPaiement: "Le paiement n'a pas pu démarrer.",
     serveur: "Le serveur ne répond pas.",
-    codeTitre: "J'ai un code d'activation",
-    codeAide: "Reçu après un paiement traité à la main. Les tirets et les majuscules n'ont pas d'importance.",
+    codeTitre: "J'ai un code cadeau",
+    codeAide: "Code offert ou partenaire. Les tirets et les majuscules n'ont pas d'importance.",
     activer: "Activer",
     codeOk: (n?: number) => `${n} crédits ajoutés. Bonne analyse.`,
     codeEchec: "L'activation a échoué.",
-    manuelTitre: "Payer autrement",
-    manuelTexte: "Pas de carte sous la main ? Écris-nous sur WhatsApp : on te donne les moyens de paiement disponibles et on active ton compte dans l'heure.",
-    whatsapp: "Nous écrire sur WhatsApp",
-    messageWa: (email: string) => `Bonjour, je veux activer mon compte Hooked Lab (${email}).`,
+    aide: "Une question sur ton compte ?",
     deconnexion: "Se déconnecter",
   },
   en: {
@@ -79,10 +77,10 @@ const TEXTES = {
     echec: "A failed analysis costs nothing: credits are refunded automatically.",
     analyser: "Analyse a creative",
     recuTitre: (attente: boolean): string => (attente ? "Payment received — your credits are on their way…" : "Payment confirmed. Your credits are ready."),
-    recuAide: "If your balance hasn't changed within a minute, message us on WhatsApp with your email: we'll check right away.",
+    recuAide: (email: string) => `If your balance hasn't changed within a minute, reload the page. Still nothing? Email ${email}: we'll check right away.`,
     annule: "Payment cancelled: nothing was charged.",
     carteTitre: (actif: boolean): string => (actif ? "Get more credits" : "Choose my plan"),
-    carteAide: "Visa, Mastercard, Apple Pay, RedotPay. Credits added as soon as the payment clears.",
+    carteAide: "Visa or Mastercard, Apple Pay, Google Pay. Access opens as soon as the payment clears.",
     abonnement: "Subscription",
     recharge: "Credit top-up",
     videosMois: (n: number) => `${n} videos / month`,
@@ -91,17 +89,15 @@ const TEXTES = {
     ouverture: "Opening secure checkout…",
     payer: (m: string) => `Pay ${m}`,
     securite: "Secure payment by Stripe. No card number ever goes through Hooked Lab.",
+    parMois: (m: string) => `That's ${m} a month, paid once for the year.`,
     erreurPaiement: "The payment could not start.",
     serveur: "The server is not responding.",
-    codeTitre: "I have an activation code",
-    codeAide: "Received after a manually processed payment. Dashes and capital letters don't matter.",
+    codeTitre: "I have a gift code",
+    codeAide: "Gift or partner code. Dashes and capital letters don't matter.",
     activer: "Activate",
     codeOk: (n?: number) => `${n} credits added. Happy analysing.`,
     codeEchec: "Activation failed.",
-    manuelTitre: "Pay another way",
-    manuelTexte: "No card at hand? Message us on WhatsApp: we'll share the available payment methods and activate your account within the hour.",
-    whatsapp: "Message us on WhatsApp",
-    messageWa: (email: string) => `Hello, I'd like to activate my Hooked Lab account (${email}).`,
+    aide: "A question about your account?",
     deconnexion: "Sign out",
   },
 };
@@ -239,6 +235,9 @@ function PaiementCarte({
       >
         {envoi ? t.ouverture : t.payer(formatPrix(montant, devise, langue))}
       </button>
+      {onglet === "abonnement" && e.mois > 1 && (
+        <p className="mt-2 text-center text-xs text-jade">{t.parMois(formatPrix(prixPalier(p, e.remise), devise, langue))}</p>
+      )}
       <p className="mt-2 text-center text-[11px] text-mist-500">{t.securite}</p>
       {erreur && <p className="mt-2 text-center text-xs text-rose-warn">{erreur}</p>}
     </Card>
@@ -249,7 +248,7 @@ function PaiementCarte({
 
 export function EspaceCompte({
   initial,
-  paiementCarte = false,
+  paiementCarte = true,
   retourPaiement,
   formule,
   periode,
@@ -269,6 +268,7 @@ export function EspaceCompte({
   const [succes, setSucces] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [attentePaiement, setAttentePaiement] = useState(retourPaiement === "ok");
+  const [codeOuvert, setCodeOuvert] = useState(false);
 
   const jours = joursRestants(u.expireLe);
 
@@ -337,11 +337,17 @@ export function EspaceCompte({
       {retourPaiement === "ok" && (
         <div className="rounded-[var(--r-lg)] border border-jade/35 bg-jade/10 px-5 py-4">
           <p className="text-sm font-medium text-jade">{t.recuTitre(attentePaiement)}</p>
-          {!attentePaiement && u.credits === initial.credits && <p className="mt-1 text-xs text-mist-300">{t.recuAide}</p>}
+          {!attentePaiement && u.credits === initial.credits && (
+            <p className="mt-1 text-xs text-mist-300">{t.recuAide(EMAIL_SUPPORT)}</p>
+          )}
         </div>
       )}
       {retourPaiement === "annule" && (
         <div className="rounded-[var(--r-lg)] border border-ink-700 bg-ink-900 px-5 py-4 text-sm text-mist-300">{t.annule}</div>
+      )}
+
+      {paiementCarte && !u.actif && (
+        <PaiementCarte actif={u.actif} formuleInitiale={formule} periodeInitiale={periode} />
       )}
 
       {/* -------------------------------------------------------- le solde */}
@@ -388,12 +394,23 @@ export function EspaceCompte({
         )}
       </Card>
 
-      {paiementCarte && <PaiementCarte actif={u.actif} formuleInitiale={formule} periodeInitiale={periode} />}
+      {paiementCarte && u.actif && (
+        <PaiementCarte actif={u.actif} formuleInitiale={formule} periodeInitiale={periode} />
+      )}
 
-      {/* ------------------------------------------------- saisie du code */}
+      {/* ------------------------------------------ code cadeau, replie */}
       <Card className="p-5">
-        <h2 className="text-sm font-semibold text-mist-100">{t.codeTitre}</h2>
-        <p className="mt-1 text-xs leading-relaxed text-mist-400">{t.codeAide}</p>
+        <button
+          onClick={() => setCodeOuvert((o) => !o)}
+          aria-expanded={codeOuvert}
+          className="flex w-full items-center justify-between text-left text-sm font-medium text-mist-200 transition hover:text-mist-100"
+        >
+          {t.codeTitre}
+          <span className={`text-mist-500 transition ${codeOuvert ? "rotate-180" : ""}`}>⌄</span>
+        </button>
+        {codeOuvert && (
+          <>
+        <p className="mt-2 text-xs leading-relaxed text-mist-400">{t.codeAide}</p>
         <form onSubmit={activer} className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input
             value={code}
@@ -411,25 +428,18 @@ export function EspaceCompte({
             {envoi ? "…" : t.activer}
           </button>
         </form>
+          </>
+        )}
         {erreur && <p className="mt-2 text-xs text-rose-warn">{erreur}</p>}
         {succes && <p className="mt-2 text-xs text-jade">{succes}</p>}
       </Card>
 
-      {/* ---------------------------------------------- autre moyen de paiement */}
-      {NUMERO_WHATSAPP && (
-        <Card className="p-5">
-          <h2 className="text-sm font-semibold text-mist-100">{t.manuelTitre}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-mist-400">{t.manuelTexte}</p>
-          <a
-            href={`https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(t.messageWa(u.email))}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 flex items-center justify-center gap-2 rounded-full border border-jade/40 bg-jade/10 px-4 py-2.5 text-sm font-medium text-jade transition hover:bg-jade/20"
-          >
-            {t.whatsapp}
-          </a>
-        </Card>
-      )}
+      <p className="text-center text-xs text-mist-500">
+        {t.aide}{" "}
+        <a href={`mailto:${EMAIL_SUPPORT}`} className="text-brand-300 underline underline-offset-4 hover:text-brand-400">
+          {EMAIL_SUPPORT}
+        </a>
+      </p>
 
       <div className="text-center">
         <button

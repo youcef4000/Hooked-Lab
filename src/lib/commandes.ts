@@ -9,6 +9,7 @@ import {
   type Commande,
   type StatutCommande,
 } from "./commandes-types";
+import { sauvegarder } from "./sauvegarde";
 
 export { STATUTS, LIBELLE_STATUT, telephoneValide, normaliserTelephone } from "./commandes-types";
 export type { Commande, StatutCommande } from "./commandes-types";
@@ -91,6 +92,7 @@ export function deposerCommande(brut: unknown): ResultatDepot {
   };
 
   appendFileSync(fichier(), JSON.stringify(commande) + "\n", "utf8");
+  sauvegarder(fichier());
   return { ok: true, commande };
 }
 
@@ -115,6 +117,7 @@ export function listerCommandes(): Commande[] {
 function reecrire(commandes: Commande[]): void {
   const contenu = commandes.map((c) => JSON.stringify(c)).join("\n");
   writeFileSync(fichier(), contenu ? contenu + "\n" : "", "utf8");
+  sauvegarder(fichier());
 }
 
 export function majCommande(

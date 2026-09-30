@@ -120,7 +120,7 @@ function readWavMono16(filePath: string): { samples: Float32Array; sampleRate: n
 
 /**
  * Surface minimale de @huggingface/transformers utilisee ici. Le paquet est
- * optionnel et absent en production (Render installe avec --omit=optional) :
+ * optionnel et absent en production (le Dockerfile installe avec --omit=optional) :
  * ni la verification des types ni le bundler ne doivent en dependre, sinon
  * la construction echoue sur le serveur alors qu'elle passe sur le PC.
  */

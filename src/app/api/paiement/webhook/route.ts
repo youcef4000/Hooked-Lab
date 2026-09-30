@@ -1,5 +1,6 @@
 import { accorderAchat } from "@/lib/paiements";
 import { signatureValide } from "@/lib/stripe";
+import { viderSauvegardes } from "@/lib/sauvegarde";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,9 @@ export async function POST(requete: Request): Promise<Response> {
     montantCentimes: session.amount_total ?? 0,
     devise: session.currency ?? "",
   });
+
+  // Credits en lieu sur (R2) avant de repondre a Stripe.
+  await viderSauvegardes(10_000);
 
   if (!resultat.ok) {
     // Paiement encaisse mais non credite : a regler a la main, on le signale
