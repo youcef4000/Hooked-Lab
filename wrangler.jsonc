@@ -17,9 +17,12 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Le domaine hooked-lab.com sera rattache une fois ajoute a ce compte
-  // Cloudflare (statut "Active"). En attendant, le site repond sur
-  // hooked-lab.youcef-ny.workers.dev.
+  // Le site sur son domaine (zone hooked-lab.com active dans ce compte).
+  // Cloudflare cree les enregistrements DNS et le certificat HTTPS.
+  "routes": [
+    { "pattern": "hooked-lab.com", "custom_domain": true },
+    { "pattern": "www.hooked-lab.com", "custom_domain": true }
+  ],
   "workers_dev": true,
 
   "containers": [
