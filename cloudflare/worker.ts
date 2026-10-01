@@ -110,9 +110,51 @@ export class HookedLab extends Container<Env> {
   // que si elle cesse (Worker supprime, par exemple).
   sleepAfter = "30m";
   envVars = variablesConteneur();
+  // Sonde de demarrage sur une route legere, plutot que la page d'accueil :
+  // elle repond en quelques millisecondes, meme a la premiere requete.
+  pingEndpoint = "ping/api/sante";
 
   override onError(erreur: unknown): void {
     console.error("[conteneur] erreur :", erreur);
+  }
+
+  /**
+   * Chien de garde, appele par la tache planifiee. Si l'application ne
+   * repond plus deux fois de suite (environ 10 minutes), le conteneur est
+   * detruit : la requete suivante en demarre un neuf, qui rapatrie ses
+   * donnees depuis R2. Un conteneur bloque ne le reste donc jamais.
+   */
+  async surveiller(empreinteReglages: string): Promise<string> {
+    let sain = false;
+    try {
+      await this.startAndWaitForPorts({
+        ports: 3000,
+        cancellationOptions: { portReadyTimeoutMS: 240_000, instanceGetTimeoutMS: 60_000 },
+      });
+      const reponse = await Promise.race([
+        this.containerFetch(
+          new Request("http://interne/api/sante", { headers: { "x-hkl-config": empreinteReglages } }),
+          3000,
+        ),
+        new Promise<never>((_, rejeter) => setTimeout(() => rejeter(new Error("delai depasse")), 30_000)),
+      ]);
+      sain = reponse.ok;
+    } catch (err) {
+      console.error("[veille] sonde en echec :", err);
+    }
+
+    if (sain) {
+      await this.ctx.storage.put("echecs", 0);
+      return "ok";
+    }
+    const echecs = ((await this.ctx.storage.get<number>("echecs")) ?? 0) + 1;
+    await this.ctx.storage.put("echecs", echecs);
+    if (echecs < 2) return `echec ${echecs}`;
+
+    console.error("[veille] application bloquee : redemarrage du conteneur");
+    await this.ctx.storage.put("echecs", 0);
+    await this.destroy();
+    return "redemarre";
   }
 }
 
@@ -167,12 +209,11 @@ export default {
   },
 
   async scheduled(_evenement: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    const adresse = `${(env.SITE_URL ?? "https://hooked-lab.com").replace(/\/+$/, "")}/api/sante`;
     ctx.waitUntil(
-      demarrer(conteneur(env))
-        .then(() => conteneur(env).fetch(new Request(adresse, { headers: { "x-hkl-config": empreinte(reglages()) } })))
-        .then(() => undefined)
-        .catch((err: unknown) => console.error("[reveil] sonde en echec :", err)),
+      conteneur(env)
+        .surveiller(empreinte(reglages()))
+        .then((etat) => console.log("[veille]", etat))
+        .catch((err: unknown) => console.error("[veille] erreur :", err)),
     );
   },
 } satisfies ExportedHandler<Env>;
