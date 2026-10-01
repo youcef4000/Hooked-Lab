@@ -35,6 +35,16 @@ interface Env {
   HOOKED_LAB: DurableObjectNamespace<HookedLab>;
   DONNEES: R2Bucket;
   SITE_URL?: string;
+  /** Cle de la porte de maintenance (secret). Absente : la porte est fermee. */
+  CLE_MAINTENANCE?: string;
+}
+
+/** Comparaison a duree constante, pour ne rien laisser deviner de la cle. */
+function memeCle(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 /** Hote interne intercepte : le conteneur y parle a R2. */
@@ -186,6 +196,20 @@ function conteneur(env: Env) {
 export default {
   async fetch(requete: Request, env: Env): Promise<Response> {
     const url = new URL(requete.url);
+
+    // Porte de maintenance : etat du conteneur, ou redemarrage force.
+    // Fermee sans le secret CLE_MAINTENANCE ; repond 404 a tout autre appel.
+    if (url.pathname.startsWith("/__maintenance/")) {
+      const cle = requete.headers.get("x-cle-maintenance") ?? "";
+      if (!env.CLE_MAINTENANCE || !memeCle(cle, env.CLE_MAINTENANCE)) return new Response("Not found", { status: 404 });
+      const c = conteneur(env);
+      if (url.pathname === "/__maintenance/etat") return Response.json(await c.getState());
+      if (url.pathname === "/__maintenance/redemarrer" && requete.method === "POST") {
+        await c.destroy();
+        return Response.json({ ok: true, action: "conteneur detruit, redemarrage a la prochaine visite" });
+      }
+      return new Response("Not found", { status: 404 });
+    }
 
     // www.hooked-lab.com -> hooked-lab.com : une seule adresse officielle.
     if (url.hostname.startsWith("www.")) {
