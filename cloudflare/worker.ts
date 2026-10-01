@@ -123,6 +123,19 @@ HookedLab.outboundByHost = {
   [HOTE_STOCKAGE]: (requete: Request, env: unknown) => gererStockage(requete, (env as Env).DONNEES as unknown as Seau),
 };
 
+/**
+ * Demarre le conteneur s'il dort, en lui laissant le temps de s'eveiller.
+ * Par defaut la bibliotheque n'attend que 20 s qu'il reponde : trop court
+ * pour Next.js qui rapatrie d'abord ses donnees depuis R2. Deja demarre, cet
+ * appel ne coute qu'une verification eclair.
+ */
+async function demarrer(c: ReturnType<typeof conteneur>): Promise<void> {
+  await c.startAndWaitForPorts({
+    ports: 3000,
+    cancellationOptions: { portReadyTimeoutMS: 240_000, instanceGetTimeoutMS: 60_000 },
+  });
+}
+
 /** L'unique conteneur : toutes les requetes voient les memes comptes et la meme file d'analyses. */
 function conteneur(env: Env) {
   return getContainer(env.HOOKED_LAB, "principal");
@@ -148,14 +161,16 @@ export default {
     if (ip) entetes.set("x-forwarded-for", ip);
     entetes.set("x-hkl-config", empreinte(reglages()));
 
-    return conteneur(env).fetch(new Request(requete, { headers: entetes }));
+    const c = conteneur(env);
+    await demarrer(c);
+    return c.fetch(new Request(requete, { headers: entetes }));
   },
 
   async scheduled(_evenement: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const adresse = `${(env.SITE_URL ?? "https://hooked-lab.com").replace(/\/+$/, "")}/api/sante`;
     ctx.waitUntil(
-      conteneur(env)
-        .fetch(new Request(adresse, { headers: { "x-hkl-config": empreinte(reglages()) } }))
+      demarrer(conteneur(env))
+        .then(() => conteneur(env).fetch(new Request(adresse, { headers: { "x-hkl-config": empreinte(reglages()) } })))
         .then(() => undefined)
         .catch((err: unknown) => console.error("[reveil] sonde en echec :", err)),
     );
