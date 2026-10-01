@@ -111,15 +111,17 @@ export class HookedLab extends Container<Env> {
   sleepAfter = "30m";
   envVars = variablesConteneur();
 
-  static outboundByHost = {
-    [HOTE_STOCKAGE]: (requete: Request, env: unknown) =>
-      gererStockage(requete, (env as Env).DONNEES as unknown as Seau),
-  };
-
   override onError(erreur: unknown): void {
     console.error("[conteneur] erreur :", erreur);
   }
 }
+
+// Le pont vers R2. Une AFFECTATION, pas un champ statique : la bibliotheque
+// enregistre ces routes via un "setter" statique, qu'un champ de classe
+// contournerait (le conteneur ne joindrait alors jamais R2).
+HookedLab.outboundByHost = {
+  [HOTE_STOCKAGE]: (requete: Request, env: unknown) => gererStockage(requete, (env as Env).DONNEES as unknown as Seau),
+};
 
 /** L'unique conteneur : toutes les requetes voient les memes comptes et la meme file d'analyses. */
 function conteneur(env: Env) {
