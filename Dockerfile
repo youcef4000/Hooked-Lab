@@ -20,9 +20,16 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Dependances d'abord : cette couche est reutilisee tant que package-lock.json
-# ne change pas. --omit=optional : pas de Whisper local (Groq transcrit).
+# ne change pas. Les dependances optionnelles restent installees : elles
+# contiennent les binaires Linux de Next.js et de Tailwind (lightningcss),
+# indispensables a la compilation. Seul Whisper local est retire ensuite
+# (Groq transcrit en production) : plusieurs centaines de Mo en moins.
+# --ignore-scripts evite d'executer les scripts d'installation de ces
+# paquets lourds ; seul ffmpeg-static a besoin du sien (telechargement de ffmpeg).
 COPY package.json package-lock.json ./
-RUN npm ci --omit=optional
+RUN npm ci --ignore-scripts \
+  && npm rebuild ffmpeg-static \
+  && rm -rf node_modules/@huggingface node_modules/onnxruntime-node node_modules/onnxruntime-web node_modules/onnxruntime-common
 
 # Code, yt-dlp pour Linux, puis compilation de production.
 COPY . .
