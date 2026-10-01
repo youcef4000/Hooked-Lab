@@ -27,6 +27,10 @@ import { Container, getContainer } from "@cloudflare/containers";
 import { env as envGlobal } from "cloudflare:workers";
 import { gererStockage, type Seau } from "./stockage";
 
+// Exige par la bibliotheque pour intercepter les requetes sortantes du
+// conteneur (le pont vers R2, voir outboundByHost plus bas).
+export { ContainerProxy } from "@cloudflare/containers";
+
 interface Env {
   HOOKED_LAB: DurableObjectNamespace<HookedLab>;
   DONNEES: R2Bucket;
